@@ -121,10 +121,18 @@ Change it after first login with: passwd
 For automatic WiFi or key-only SSH, build a personal image from source with secrets.env."
 fi
 
+variant_note=
+if [ "${IMAGE_VARIANT:-xorg}" = headless ]; then
+    variant_note="HEADLESS image: boots to the LCD console. No Xorg, no desktop.
+For the desktop image, use the latest regular release instead.
+
+"
+fi
+
 cat >"$release_dir/README-release.txt" <<EOF
 x-chip-tinycore-xorg PocketCHIP rootfs image
 
-Source: $PROJECT_REPO_URL
+${variant_note}Source: $PROJECT_REPO_URL
 
 File: $(basename "$rootfs_out")
 
