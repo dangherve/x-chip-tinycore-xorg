@@ -395,10 +395,12 @@ for required in \
     usr/local/share/x-chip/xorg/icons/file.xpm \
     usr/local/share/x-chip/xorg/icons/files.xpm \
     usr/local/share/x-chip/xorg/icons/forward.xpm \
+    usr/local/share/x-chip/xorg/icons/game.xpm \
     usr/local/share/x-chip/xorg/icons/home.xpm \
     usr/local/share/x-chip/xorg/icons/image.xpm \
     usr/local/share/x-chip/xorg/icons/menu.xpm \
     usr/local/share/x-chip/xorg/icons/monitor.xpm \
+    usr/local/share/x-chip/xorg/icons/music.xpm \
     usr/local/share/x-chip/xorg/icons/network.xpm \
     usr/local/share/x-chip/xorg/icons/pocket.xpm \
     usr/local/share/x-chip/xorg/icons/refresh.xpm \
@@ -559,10 +561,12 @@ for root_owned in \
     usr/local/share/x-chip/xorg/icons/file.xpm \
     usr/local/share/x-chip/xorg/icons/files.xpm \
     usr/local/share/x-chip/xorg/icons/forward.xpm \
+    usr/local/share/x-chip/xorg/icons/game.xpm \
     usr/local/share/x-chip/xorg/icons/home.xpm \
     usr/local/share/x-chip/xorg/icons/image.xpm \
     usr/local/share/x-chip/xorg/icons/menu.xpm \
     usr/local/share/x-chip/xorg/icons/monitor.xpm \
+    usr/local/share/x-chip/xorg/icons/music.xpm \
     usr/local/share/x-chip/xorg/icons/network.xpm \
     usr/local/share/x-chip/xorg/icons/pocket.xpm \
     usr/local/share/x-chip/xorg/icons/refresh.xpm \
@@ -1230,7 +1234,7 @@ require_content usr/local/share/x-chip/xorg/pocketchip.xmodmap 'keycode 10 = 1 e
 require_content usr/local/share/x-chip/xorg/pocketchip.xmodmap 'keycode 29 = y Y braceleft braceleft'
 require_content usr/local/share/x-chip/xorg/pocketchip.xmodmap 'keycode 61 = slash question backslash backslash'
 require_content usr/local/share/x-chip/xorg/jwmrc 'label="Menu" icon="menu.xpm"'
-require_content usr/local/share/x-chip/xorg/jwmrc 'label="Play" icon="pocket.xpm" popup="Games"'
+require_content usr/local/share/x-chip/xorg/jwmrc 'label="Play" icon="game.xpm" popup="Games"'
 require_content usr/local/share/x-chip/xorg/jwmrc '<TaskList maxwidth="160"/>'
 require_content usr/local/share/x-chip/xorg/jwmrc 'label="Browser" icon="browser.xpm">dillo -g 474x212+0+0'
 require_content usr/local/share/x-chip/xorg/jwmrc 'label="Files" icon="files.xpm">pcmanfm'
@@ -1239,15 +1243,15 @@ require_content usr/local/share/x-chip/xorg/jwmrc 'label="Code" icon="code.xpm">
 require_content usr/local/share/x-chip/xorg/jwmrc 'label="Calculator" icon="pocket.xpm"'
 require_content usr/local/share/x-chip/xorg/jwmrc 'links -ssl.builtin-certificates 1 https://search.brave.com/'
 require_content usr/local/share/x-chip/xorg/jwmrc 'label="Images" icon="image.xpm"'
-require_content usr/local/share/x-chip/xorg/jwmrc 'label="Music" icon="pocket.xpm"'
-require_content usr/local/share/x-chip/xorg/jwmrc 'label="Music Player" icon="pocket.xpm"'
+require_content usr/local/share/x-chip/xorg/jwmrc 'label="Music" icon="music.xpm"'
+require_content usr/local/share/x-chip/xorg/jwmrc 'label="Music Player" icon="music.xpm"'
 require_content usr/local/share/x-chip/xorg/jwmrc 'label="SunVox" icon="pocket.xpm"'
 require_content usr/local/share/x-chip/xorg/jwmrc 'label="PixiTracker" icon="pocket.xpm"'
 require_content usr/local/share/x-chip/xorg/jwmrc 'label="PixiTracker 1Bit" icon="pocket.xpm"'
 require_content usr/local/share/x-chip/xorg/jwmrc 'label="Pixilang" icon="pocket.xpm"'
 require_content usr/local/share/x-chip/xorg/jwmrc 'label="Video" icon="monitor.xpm"'
-require_content usr/local/share/x-chip/xorg/jwmrc 'label="Games" icon="apps.xpm"'
-require_content usr/local/share/x-chip/xorg/jwmrc 'label="Game Launcher" icon="apps.xpm"'
+require_content usr/local/share/x-chip/xorg/jwmrc 'label="Games" icon="game.xpm"'
+require_content usr/local/share/x-chip/xorg/jwmrc 'label="Game Launcher" icon="game.xpm"'
 require_content usr/local/share/x-chip/xorg/jwmrc 'label="Doom" icon="pocket.xpm"'
 require_content usr/local/share/x-chip/xorg/jwmrc 'x-chip-term-hold x-chip-doom run'
 require_content usr/local/share/x-chip/xorg/jwmrc 'label="Game Boy Launcher" icon="pocket.xpm"'
@@ -1277,8 +1281,8 @@ require_content usr/local/share/x-chip/xorg/icons/menu.xpm 'static char *menu_xp
 require_content usr/local/share/x-chip/xorg/icons/terminal.xpm 'static char *terminal_xpm'
 require_content usr/local/share/x-chip/xorg/icons/files.xpm 'static char *files_xpm'
 for icon in \
-    apps back brightness browser close code editor file files forward home image menu \
-    monitor network pocket refresh terminal touch up window; do
+    apps back brightness browser close code editor file files forward game home image menu \
+    monitor music network pocket refresh terminal touch up window; do
     require_xpm_icon "usr/local/share/x-chip/xorg/icons/$icon.xpm"
 done
 require_content usr/local/share/icons/x-chip/index.theme 'Name=X-CHIP'
