@@ -1375,7 +1375,7 @@ require_content usr/local/share/x-chip/xorg/gtkrc-2.0 'gtk-icon-theme-name = "x-
 require_content usr/local/share/x-chip/xorg/gtkrc-2.0 'style "pocketclean"'
 require_content usr/local/share/x-chip/xorg/gtk3-settings.ini 'gtk-font-name = Luxi Sans 9'
 require_content usr/local/share/x-chip/xorg/gtk3-settings.ini 'gtk-icon-theme-name = x-chip'
-require_content usr/local/share/x-chip/xorg/gtk3-settings.ini 'gtk-application-prefer-dark-theme = false'
+require_content usr/local/share/x-chip/xorg/gtk3-settings.ini 'gtk-application-prefer-dark-theme = true'
 require_content usr/local/share/x-chip/xorg/Xdefaults 'Aterm*transparent: false'
 require_content usr/local/share/x-chip/xorg/Xdefaults 'Aterm*inheritPixmap: false'
 require_content usr/local/share/x-chip/xorg/Xdefaults 'Aterm*fading: 0'

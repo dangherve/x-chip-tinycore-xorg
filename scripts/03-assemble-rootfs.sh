@@ -5424,7 +5424,7 @@ EOF
 gtk-font-name = Luxi Sans 9
 gtk-icon-theme-name = x-chip
 gtk-theme-name = Adwaita
-gtk-application-prefer-dark-theme = false
+gtk-application-prefer-dark-theme = true
 gtk-cursor-theme-name = Adwaita
 EOF
 
