@@ -380,11 +380,19 @@ for required in \
     usr/local/share/mc/skins/mashdark256.ini \
     usr/local/share/mc/skins/modarin256.ini \
     usr/local/share/mc/skins/sand256.ini \
+    usr/local/share/mc/skins/electricblue256.ini \
+    usr/local/share/mc/skins/julia256.ini \
+    usr/local/share/mc/skins/xoria256.ini \
+    usr/local/share/mc/skins/yadt256.ini \
     usr/local/share/x-chip/themes/pocket.conf \
     usr/local/share/x-chip/themes/mashdark.conf \
     usr/local/share/x-chip/themes/modarin.conf \
     usr/local/share/x-chip/themes/sand.conf \
     usr/local/share/x-chip/themes/greenpurple.conf \
+    usr/local/share/x-chip/themes/electricblue.conf \
+    usr/local/share/x-chip/themes/julia.conf \
+    usr/local/share/x-chip/themes/xoria.conf \
+    usr/local/share/x-chip/themes/yadt.conf \
     usr/local/etc/x-chip/theme.conf \
     usr/local/etc/x-chip/mc-skin.conf \
     etc/profile.d/x-chip-mc-skin.sh \
@@ -1420,6 +1428,12 @@ require_content usr/local/share/mc/skins/gray-green-purple256.ini '256colors = t
 require_content usr/local/share/mc/skins/mashdark256.ini '256colors = true'
 require_content usr/local/share/mc/skins/modarin256.ini '256colors = true'
 require_content usr/local/share/mc/skins/sand256.ini '256colors = true'
+require_content usr/local/share/mc/skins/electricblue256.ini '256colors = true'
+require_content usr/local/share/mc/skins/julia256.ini '256colors = true'
+require_content usr/local/share/mc/skins/xoria256.ini '256colors = true'
+require_content usr/local/share/mc/skins/yadt256.ini '256colors = true'
+require_content usr/local/share/x-chip/themes/electricblue.conf 'THEME_MC_SKIN=electricblue256'
+require_content usr/local/share/x-chip/themes/yadt.conf 'THEME_MC_SKIN=yadt256'
 # One knob, everything follows: x-chip-theme recolors the per-user desktop
 # configs and picks the matching mc skin through the two state files.
 require_content usr/local/etc/x-chip/theme.conf 'THEME=pocket'

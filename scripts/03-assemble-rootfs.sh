@@ -7217,6 +7217,10 @@ for required in \
     ./usr/local/share/mc/skins/mashdark256.ini \
     ./usr/local/share/mc/skins/modarin256.ini \
     ./usr/local/share/mc/skins/sand256.ini \
+    ./usr/local/share/mc/skins/electricblue256.ini \
+    ./usr/local/share/mc/skins/julia256.ini \
+    ./usr/local/share/mc/skins/xoria256.ini \
+    ./usr/local/share/mc/skins/yadt256.ini \
     ./usr/local/bin/x-chip-theme \
     ./usr/local/etc/x-chip/theme.conf \
     ./usr/local/etc/x-chip/mc-skin.conf \
@@ -7226,6 +7230,10 @@ for required in \
     ./usr/local/share/x-chip/themes/modarin.conf \
     ./usr/local/share/x-chip/themes/sand.conf \
     ./usr/local/share/x-chip/themes/greenpurple.conf \
+    ./usr/local/share/x-chip/themes/electricblue.conf \
+    ./usr/local/share/x-chip/themes/julia.conf \
+    ./usr/local/share/x-chip/themes/xoria.conf \
+    ./usr/local/share/x-chip/themes/yadt.conf \
     ./usr/local/share/x-chip/xorg/wallpapers/pocket-core.png \
     ./usr/local/share/x-chip/xorg/Xdefaults \
     ./usr/local/share/x-chip/xorg/mc-media.ext.ini \

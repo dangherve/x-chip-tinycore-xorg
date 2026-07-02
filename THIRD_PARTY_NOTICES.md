@@ -91,9 +91,13 @@ under `/usr/local/share/mc/skins/`:
 - `modarin256.ini` by Oliver Lange, from the Midnight Commander skin
   collection (`https://github.com/MidnightCommander/skins`).
   License: as provided by the mc project (GPL-3.0-or-later).
-- `sand256.ini` and `gray-green-purple256.ini` from the Midnight Commander
-  skin collection (`https://github.com/MidnightCommander/skins`).
+- `sand256.ini`, `gray-green-purple256.ini`, `julia256.ini`, `xoria256.ini`,
+  and `yadt256.ini` from the Midnight Commander project
+  (`https://github.com/MidnightCommander/mc`, `misc/skins/`).
   License: as provided by the mc project (GPL-3.0-or-later).
+- `electricblue256.ini` from the Midnight Commander community skin
+  collection (`https://github.com/MidnightCommander/skins`).
+  License: as provided by that upstream repository.
 
 `gray-orange-blue256.ini` (shipped as `pocketclean256.ini`) is this project's
 own skin, derived from the same skin format.
