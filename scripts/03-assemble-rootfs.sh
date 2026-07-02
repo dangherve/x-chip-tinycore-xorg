@@ -3033,31 +3033,38 @@ conky.config = {
 	total_run_times = 0,
 	double_buffer = true,
 	use_xft = true,
-	font = 'Luxi Sans:size=8',
+	font = 'Luxi Sans:size=9',
 	own_window = false,
 	alignment = 'top_left',
 	gap_x = 6,
 	gap_y = 38,
-	minimum_width = 190,
+	minimum_width = 200,
 	maximum_width = 220,
-	draw_shades = false,
+	draw_shades = true,
+	default_shade_color = '000000',
 	draw_outline = false,
 	draw_borders = false,
 	draw_graph_borders = false,
 	default_color = 'EAF2EF',
 	color1 = '4FD1C5',
 	color2 = '1F7A66',
+	default_bar_width = 200,
+	default_bar_height = 4,
 };
 
 conky.text = [[
-${color1}${time %a %d %b  %H:%M}${color}
-${color1}Pocket${color} ${nodename}
-Up ${uptime_short}  Load ${loadavg}
-CPU ${cpu cpu0}% ${freq_g}GHz
-RAM ${memperc}% ${mem}/${memmax}
-Disk ${fs_used /}/${fs_size /}
+${color1}Pocket CHIP${color}  ${time %a %d %b %H:%M}
+${color2}${hr}${color}
+CPU  ${cpu cpu0}%  ${freq_g} GHz
+${color1}${cpubar}${color}
+RAM  ${memperc}%  ${mem} / ${memmax}
+${color1}${membar}${color}
+Disk ${fs_used /} / ${fs_size /}
+${color1}${fs_bar /}${color}
+${color2}${hr}${color}
 WiFi ${addr wlan0}
-Bat ${execi 10 sh -c "cat /sys/class/power_supply/*/capacity 2>/dev/null | head -n 1"}% ${execi 10 sh -c "cat /sys/class/power_supply/*/status 2>/dev/null | head -n 1"}
+Bat  ${execi 10 sh -c "cat /sys/class/power_supply/*/capacity 2>/dev/null | head -n 1"}%  ${execi 10 sh -c "cat /sys/class/power_supply/*/status 2>/dev/null | head -n 1"}
+Up   ${uptime_short}  Load ${loadavg 1}
 ]];
 CONKY
 }
