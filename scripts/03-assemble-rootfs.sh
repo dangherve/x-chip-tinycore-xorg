@@ -3033,13 +3033,13 @@ conky.config = {
 	total_run_times = 0,
 	double_buffer = true,
 	use_xft = true,
-	font = 'Luxi Sans:size=9',
+	font = 'Luxi Sans:size=8',
 	own_window = false,
 	alignment = 'top_left',
 	gap_x = 6,
-	gap_y = 38,
-	minimum_width = 200,
-	maximum_width = 220,
+	gap_y = 24,
+	minimum_width = 130,
+	maximum_width = 200,
 	draw_shades = true,
 	default_shade_color = '000000',
 	draw_outline = false,
@@ -3048,23 +3048,17 @@ conky.config = {
 	default_color = 'EAF2EF',
 	color1 = '4FD1C5',
 	color2 = '1F7A66',
-	default_bar_width = 200,
-	default_bar_height = 4,
 };
 
 conky.text = [[
 ${color1}Pocket CHIP${color}  ${time %a %d %b %H:%M}
 ${color2}${hr}${color}
-CPU  ${cpu cpu0}%  ${freq_g} GHz
-${color1}${cpubar}${color}
-RAM  ${memperc}%  ${mem} / ${memmax}
-${color1}${membar}${color}
-Disk ${fs_used /} / ${fs_size /}
-${color1}${fs_bar /}${color}
-${color2}${hr}${color}
-WiFi ${addr wlan0}
-Bat  ${execi 10 sh -c "cat /sys/class/power_supply/*/capacity 2>/dev/null | head -n 1"}%  ${execi 10 sh -c "cat /sys/class/power_supply/*/status 2>/dev/null | head -n 1"}
-Up   ${uptime_short}  Load ${loadavg 1}
+CPU ${cpu cpu0}%  ${freq_g}GHz  ${execi 30 t=$(cat /sys/class/thermal/thermal_zone0/temp 2>/dev/null); [ -n "$t" ] && echo "$((t/1000))C"}
+RAM ${memperc}%  Disk ${fs_used /}
+WiFi ${execi 30 s=$(/usr/local/bin/iw dev wlan0 link 2>/dev/null | sed -n "s/.*SSID: //p" | head -n 1); [ -n "$s" ] && echo "$s" || echo off} ${execi 30 /usr/local/bin/iw dev wlan0 link 2>/dev/null | sed -n "s/.*signal: \(-*[0-9]*\) dBm.*/\1dBm/p"}
+IP ${addr wlan0}
+Bat ${execi 10 sh -c "cat /sys/class/power_supply/*/capacity 2>/dev/null | head -n 1"}% ${execi 10 sh -c "cat /sys/class/power_supply/*/status 2>/dev/null | head -n 1"}
+Up ${uptime_short}  Load ${loadavg 1}
 ]];
 CONKY
 }
