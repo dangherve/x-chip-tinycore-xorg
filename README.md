@@ -230,11 +230,16 @@ Touchscreen calibration is one plain text matrix file:
 /usr/local/share/x-chip/xorg/touchscreen-calibration.matrix
 ```
 
-To recalibrate (five positions, three taps each, saved and reapplied):
+To recalibrate (tap the on-screen targets; the result is saved and reapplied
+at every session start):
 
 ```sh
 DISPLAY=:0 x-chip-touch-calibrate
 ```
+
+Calibration runs the bundled `xlibinput_calibrator` (misclick detection, the
+previous matrix is restored if a run fails); pass extra upstream flags
+through `X_CHIP_CALIBRATOR_ARGS`.
 
 Xorg/session logs land in `/tmp/x-chip-startx.log`, `/tmp/Xorg.0.log`, and
 `/var/log/x-chip-desktop.log`. The active Xorg config is
@@ -259,6 +264,11 @@ on first launch; mGBA downloads verified free homebrew (`2048`, `uCity`); your
 own legal `.gb`/`.gbc`/`.gba` files work from `~/Games/GameBoy` or
 `~/Downloads`. For PICO-8, install your licensed Linux ARM files under
 `~/pico-8/pico8` or set `X_CHIP_PICO8_BIN`.
+
+While PICO-8 runs, the touchscreen drives the cursor like a trackpad through
+`x-chip-touch2mouse` (PICO-8 only understands mouse events, not raw touch);
+set `X_CHIP_PICO8_TOUCH_MOUSE=0` to disable it. The bridge also works for any
+other mouse-only app: `sudo x-chip-touch2mouse`.
 
 PocketCHIP game controls (TIC-80 and mGBA):
 
@@ -383,8 +393,10 @@ kernel/sun5i-chip.config       PocketCHIP kernel config fragment
 kernel/dip-9d011a-1-48.dts     PocketCHIP v72 keyboard overlay
 tce/onboot.lst                 extensions loaded at boot
 tce/xorg.lst                   desktop extensions loaded by desktop startup
+src/x-chip-touch2mouse.c       touchscreen -> mouse bridge (PICO-8)
 scripts/00-fetch-deps.sh       fetch chip-debroot and x-chip-tools
 scripts/03-assemble-rootfs.sh  rootfs assembly (installs all x-chip tools)
+scripts/04-build-touch-tools.sh  cross-build xlibinput_calibrator + bridge
 scripts/07-verify-rootfs.sh    image verification gate
 scripts/08-package-release.sh  release packaging (rootfs + update pack)
 scripts/10-build-update-pack.sh update pack builder

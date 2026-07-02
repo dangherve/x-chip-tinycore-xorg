@@ -43,6 +43,7 @@ collect_members() {
         fi
     done
     grep -E '^\./usr/local/(bin|sbin)/x-chip' "$LIST" || true
+    grep -E '^\./usr/local/bin/xlibinput_calibrator$' "$LIST" || true
     grep -E '^\./etc/profile\.d/x-chip-mc-skin\.sh$' "$LIST" || true
     grep -E '^\./tce/[^/]+\.lst$' "$LIST" || true
     for app in "${COMMUNITY_APPS[@]}"; do

@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 PRIVATE_ROMS_DIR ?= dist/private-roms/GameBoy
 
-.PHONY: all deps base kernel rtl8812au rootfs container-build private-gameboy-rootfs public-rootfs verify public-verify public-release headless-rootfs public-headless-rootfs headless-verify public-headless-verify public-headless-release community-tcz update-pack flash-local-check flash-local flash-host-check flash-host flash-pi-check flash-pi clean distclean
+.PHONY: all deps base kernel rtl8812au touch-tools rootfs container-build private-gameboy-rootfs public-rootfs verify public-verify public-release headless-rootfs public-headless-rootfs headless-verify public-headless-verify public-headless-release community-tcz update-pack flash-local-check flash-local flash-host-check flash-host flash-pi-check flash-pi clean distclean
 
 all: rootfs
 
@@ -19,8 +19,12 @@ kernel: base
 rtl8812au: kernel
 	./scripts/04-build-rtl8812au.sh
 
+# xlibinput_calibrator + x-chip-touch2mouse -> build/touch-tools
+touch-tools:
+	./scripts/04-build-touch-tools.sh
+
 # finishing (boot.scr, ssh, tce) + pack -> $(OUT)
-rootfs: rtl8812au
+rootfs: rtl8812au touch-tools
 	./scripts/03-assemble-rootfs.sh
 
 container-build:

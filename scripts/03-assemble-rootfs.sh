@@ -2781,14 +2781,39 @@ status() {
 	echo "mode: windowed 480x272"
 }
 
+# While PICO-8 runs, bridge the touchscreen to a virtual mouse: the bundled
+# PICO-8 SDL only understands mouse events, not the touch events the
+# mainline rtp driver emits. Disable with X_CHIP_PICO8_TOUCH_MOUSE=0.
+stop_touch_bridge() {
+	pid=$(cat /tmp/x-chip-touch2mouse.pid 2>/dev/null) || return 0
+	[ -n "$pid" ] || return 0
+	sudo kill "$pid" 2>/dev/null || true
+}
+
+start_touch_bridge() {
+	touch_bridge=0
+	[ "${X_CHIP_PICO8_TOUCH_MOUSE:-1}" = 1 ] || return 0
+	command -v x-chip-touch2mouse >/dev/null 2>&1 || return 0
+	[ -e /dev/uinput ] || return 0
+	stop_touch_bridge
+	sudo sh -c 'x-chip-touch2mouse >>/tmp/x-chip-touch2mouse.log 2>&1 &' || return 0
+	touch_bridge=1
+}
+
 run_pico8() {
 	bin=$(find_pico8) || {
 		missing >&2
 		return 1
 	}
 	export DISPLAY
+	start_touch_bridge
+	status=0
 	# shellcheck disable=SC2086
-	exec "$bin" $WINDOW_ARGS "$@"
+	"$bin" $WINDOW_ARGS "$@" || status=$?
+	if [ "$touch_bridge" = 1 ]; then
+		stop_touch_bridge
+	fi
+	return "$status"
 }
 
 menu() {
@@ -2803,12 +2828,12 @@ menu() {
 		read choice || exit 0
 		case "$choice" in
 			q|Q|'') exit 0 ;;
-			1) run_pico8 -splore ;;
+			1) run_pico8 -splore || true ;;
 			2)
 				printf 'Cart path: '
 				read cart || exit 0
 				[ -n "$cart" ] || continue
-				run_pico8 "$cart"
+				run_pico8 "$cart" || true
 				;;
 			*) echo "Invalid selection"; sleep 1 ;;
 		esac
@@ -3955,6 +3980,24 @@ echo "media ready"
 EOF
 }
 
+# Cross-built touch input binaries from scripts/04-build-touch-tools.sh:
+# the upstream xlibinput_calibrator used by x-chip-touch-calibrate, and the
+# x-chip-touch2mouse bridge used by the PICO-8 launcher.
+install_touch_tools() {
+    local dir="$HERE/build/touch-tools"
+    if [ ! -x "$dir/xlibinput_calibrator" ] || [ ! -x "$dir/x-chip-touch2mouse" ]; then
+        if [ "${TOUCH_TOOLS_BUILD:-1}" = 1 ]; then
+            echo "ERROR: missing touch tools in $dir (run 'make touch-tools' or set TOUCH_TOOLS_BUILD=0)" >&2
+            exit 1
+        fi
+        echo ">> touch tools disabled; x-chip-touch-calibrate will need xlibinput_calibrator installed manually"
+        return 0
+    fi
+    need_root install -d "$RFS/usr/local/bin"
+    need_root install -m755 "$dir/xlibinput_calibrator" "$RFS/usr/local/bin/xlibinput_calibrator"
+    need_root install -m755 "$dir/x-chip-touch2mouse" "$RFS/usr/local/bin/x-chip-touch2mouse"
+}
+
 install_xorg_desktop_tools() {
     need_root install -d "$RFS/usr/local/bin" \
         "$RFS/usr/local/etc/mc" \
@@ -4415,18 +4458,6 @@ DISPLAY=${DISPLAY:-:0}
 DEVICE=${X_CHIP_TOUCH_DEVICE:-1c25000.rtp}
 MATRIX_FILE=${X_CHIP_TOUCH_MATRIX_FILE:-/usr/local/share/x-chip/xorg/touchscreen-calibration.matrix}
 LOG=${X_CHIP_TOUCH_CALIBRATION_LOG:-/tmp/x-chip-touch-calibrate.log}
-WIDTH=${X_CHIP_SCREEN_WIDTH:-480}
-HEIGHT=${X_CHIP_SCREEN_HEIGHT:-272}
-MARGIN=${X_CHIP_CALIBRATION_MARGIN:-64}
-RAW_RANGE=${X_CHIP_TOUCH_RAW_RANGE:-65535}
-TAP_TIMEOUT=${X_CHIP_CALIBRATION_TAP_TIMEOUT:-90}
-TAP_RETRIES=${X_CHIP_CALIBRATION_TAP_RETRIES:-3}
-SAMPLES_PER_TARGET=${X_CHIP_CALIBRATION_SAMPLES:-3}
-TARGET_COLS=${X_CHIP_CALIBRATION_TARGET_COLS:-9}
-TARGET_ROWS=${X_CHIP_CALIBRATION_TARGET_ROWS:-4}
-TARGET_PIXEL_WIDTH=${X_CHIP_CALIBRATION_TARGET_PIXEL_WIDTH:-96}
-TARGET_PIXEL_HEIGHT=${X_CHIP_CALIBRATION_TARGET_PIXEL_HEIGHT:-62}
-FBDEV=${X_CHIP_FRAMEBUFFER:-/dev/fb0}
 
 export DISPLAY
 
@@ -4448,287 +4479,12 @@ wait_for_x_ready() {
 	return 1
 }
 
-set_identity_matrix() {
-	xinput set-prop "$DEVICE" "libinput Calibration Matrix" 1 0 0 0 1 0 0 0 1 2>/dev/null || \
-		xinput set-prop "$DEVICE" "Coordinate Transformation Matrix" 1 0 0 0 1 0 0 0 1 2>/dev/null || true
-}
-
-fb_bpp() {
-	cat /sys/class/graphics/fb0/bits_per_pixel 2>/dev/null || echo 32
-}
-
-fb_line_length() {
-	cat /sys/class/graphics/fb0/stride 2>/dev/null || echo $((WIDTH * $(fb_bpp) / 8))
-}
-
-clamp_coord() {
-	value="$1"
-	max="$2"
-	[ "$value" -lt 0 ] && value=0
-	[ "$value" -gt "$max" ] && value=$max
-	echo "$value"
-}
-
-write_white_pixel() {
-	case "$(fb_bpp)" in
-		32) printf '\377\377\377\377' ;;
-		24) printf '\377\377\377' ;;
-		16) printf '\377\377' ;;
-		8) printf '\377' ;;
-		*) printf '\377\377\377\377' ;;
-	esac
-}
-
-make_white_line() {
-	count="$1"
-	out="$2"
-	: >"$out"
-	i=0
-	while [ "$i" -lt "$count" ]; do
-		write_white_pixel >>"$out"
-		i=$((i + 1))
-	done
-}
-
-fb_write_file() {
-	file="$1"
-	offset="$2"
-	dd if="$file" of="$FBDEV" bs=1 seek="$offset" conv=notrunc 2>/dev/null || true
-}
-
-fb_hline() {
-	x1="$(clamp_coord "$1" $((WIDTH - 1)))"
-	x2="$(clamp_coord "$2" $((WIDTH - 1)))"
-	y="$(clamp_coord "$3" $((HEIGHT - 1)))"
-	[ "$x1" -gt "$x2" ] && { tmpx="$x1"; x1="$x2"; x2="$tmpx"; }
-	bytes_per_pixel=$(( $(fb_bpp) / 8 ))
-	line_length="$(fb_line_length)"
-	count=$((x2 - x1 + 1))
-	line_file="/tmp/x-chip-calibration-line.$$"
-	make_white_line "$count" "$line_file"
-	fb_write_file "$line_file" $((y * line_length + x1 * bytes_per_pixel))
-	rm -f "$line_file"
-}
-
-fb_vline() {
-	x="$(clamp_coord "$1" $((WIDTH - 1)))"
-	y1="$(clamp_coord "$2" $((HEIGHT - 1)))"
-	y2="$(clamp_coord "$3" $((HEIGHT - 1)))"
-	[ "$y1" -gt "$y2" ] && { tmpy="$y1"; y1="$y2"; y2="$tmpy"; }
-	bytes_per_pixel=$(( $(fb_bpp) / 8 ))
-	line_length="$(fb_line_length)"
-	pixel_file="/tmp/x-chip-calibration-pixel.$$"
-	write_white_pixel >"$pixel_file"
-	y="$y1"
-	while [ "$y" -le "$y2" ]; do
-		fb_write_file "$pixel_file" $((y * line_length + x * bytes_per_pixel))
-		y=$((y + 1))
-	done
-	rm -f "$pixel_file"
-}
-
-draw_framebuffer_target() {
-	target_x="$1"
-	target_y="$2"
-	radius=18
-	inner=5
-	fb_hline $((target_x - radius)) $((target_x - inner)) "$target_y"
-	fb_hline $((target_x + inner)) $((target_x + radius)) "$target_y"
-	fb_vline "$target_x" $((target_y - radius)) $((target_y - inner))
-	fb_vline "$target_x" $((target_y + inner)) $((target_y + radius))
-	fb_hline $((target_x - 3)) $((target_x + 3)) "$target_y"
-	fb_vline "$target_x" $((target_y - 3)) $((target_y + 3))
-}
-
-draw_window_target() {
-	label="$1"
-	target_x="$2"
-	target_y="$3"
-	left=$((target_x - TARGET_PIXEL_WIDTH / 2))
-	top=$((target_y - TARGET_PIXEL_HEIGHT / 2))
-	max_left=$((WIDTH - TARGET_PIXEL_WIDTH))
-	max_top=$((HEIGHT - TARGET_PIXEL_HEIGHT))
-	[ "$max_left" -lt 0 ] && max_left=0
-	[ "$max_top" -lt 0 ] && max_top=0
-	[ "$left" -lt 0 ] && left=0
-	[ "$top" -lt 0 ] && top=0
-	[ "$left" -gt "$max_left" ] && left=$max_left
-	[ "$top" -gt "$max_top" ] && top=$max_top
-	kill "$target_pid" 2>/dev/null || true
-	geom="${TARGET_COLS}x${TARGET_ROWS}+${left}+${top}"
-	aterm -bg '#0F1716' -fg '#EAF2EF' -cr '#1F7A66' -geometry "$geom" -title "$label" \
-		-e sh -c 'printf "\n   X\n  TAP\n"; sleep "$1"' sh "$TAP_TIMEOUT" \
-		>/tmp/x-chip-calibration-target.log 2>&1 &
-	target_pid=$!
-}
-
-draw_target() {
-	label="$1"
-	target_x="$2"
-	target_y="$3"
-	clear_framebuffer
-	draw_framebuffer_target "$target_x" "$target_y"
-	sleep 1
-}
-
-clear_framebuffer() {
-	[ -w "$FBDEV" ] || {
-		echo "$FBDEV is not writable; cannot draw calibration target" >&2
-		return 1
-	}
-	line_length="$(fb_line_length)"
-	size=$((line_length * HEIGHT))
-	dd if=/dev/zero of="$FBDEV" bs="$size" count=1 conv=notrunc 2>/dev/null || true
-}
-
-stop_desktop_windows() {
-	pkill -x aterm 2>/dev/null || true
-	sleep 1
-}
-
-start_desktop_windows() {
-	if ! pgrep -x aterm >/dev/null 2>&1; then
-		aterm >/tmp/aterm.log 2>&1 &
-	fi
-}
-
-extract_point() {
-	awk '
-		/EVENT type 22/ { touch=1; x=""; next }
-		touch && $1 == "0:" { x=$2; next }
-		touch && x != "" && $1 == "1:" { print x, $2; exit }
-	' "$1"
-}
-
-capture_tap() {
-	label="$1"
-	target_x="$2"
-	target_y="$3"
-	out="/tmp/x-chip-calibration-$label.out"
-	rm -f "$out"
-	draw_target "$label" "$target_x" "$target_y"
-	echo "Tap $label on the PocketCHIP screen..." >&2
-	xinput test-xi2 --root "$DEVICE" >"$out" 2>>"$LOG" &
-	xinput_pid=$!
-	start=$(date +%s 2>/dev/null || echo 0)
-	while :; do
-		point="$(extract_point "$out" || true)"
-		if [ -n "$point" ]; then
-			kill "$xinput_pid" 2>/dev/null || true
-			wait "$xinput_pid" 2>/dev/null || true
-			printf '%s %s %s %s\n' "$point" "$target_x" "$target_y" "$label"
-			return 0
-		fi
-		if ! kill -0 "$xinput_pid" 2>/dev/null; then
-			wait "$xinput_pid" 2>/dev/null || true
-			point="$(extract_point "$out" || true)"
-			[ -n "$point" ] && printf '%s %s %s %s\n' "$point" "$target_x" "$target_y" "$label"
-			return 0
-		fi
-		now=$(date +%s 2>/dev/null || echo 0)
-		if [ "$start" -gt 0 ] && [ "$now" -ge "$((start + TAP_TIMEOUT))" ]; then
-			kill "$xinput_pid" 2>/dev/null || true
-			wait "$xinput_pid" 2>/dev/null || true
-			return 0
-		fi
-		sleep 1
-	done
-}
-
-capture_required_tap() {
-	label="$1"
-	target_x="$2"
-	target_y="$3"
-	attempt=1
-	while [ "$attempt" -le "$TAP_RETRIES" ]; do
-		point="$(capture_tap "$label" "$target_x" "$target_y")"
-		if [ -n "$point" ]; then
-			echo "$point"
-			return 0
-		fi
-		echo "No tap captured for $label, retry $attempt/$TAP_RETRIES." >&2
-		attempt=$((attempt + 1))
-	done
-	echo "Calibration failed: no tap captured for $label." >&2
-	return 1
-}
-
-capture_averaged_tap() {
-	label="$1"
-	target_x="$2"
-	target_y="$3"
-	samples="/tmp/x-chip-calibration-$label.samples"
-	rm -f "$samples"
-	sample=1
-	while [ "$sample" -le "$SAMPLES_PER_TARGET" ]; do
-		point="$(capture_required_tap "$label-$sample-of-$SAMPLES_PER_TARGET" "$target_x" "$target_y")" || return 1
-		echo "$point" >>"$samples"
-		sleep 1
-		sample=$((sample + 1))
-	done
-	awk -v tx="$target_x" -v ty="$target_y" -v label="$label" '
-		NF >= 2 { sx += $1; sy += $2; n++ }
-		END {
-			if (n < 1) exit 1
-			printf "%.2f %.2f %s %s %s\n", sx / n, sy / n, tx, ty, label
-		}
-	' "$samples"
-	awk -v label="$label" 'NF >= 2 { printf "sample %s raw=%s,%s\n", label, $1, $2 }' "$samples" >>"$LOG"
-}
-
-compute_matrix() {
-	awk -v w="$WIDTH" -v h="$HEIGHT" -v r="$RAW_RANGE" '
-		function abs(v) {
-			return v < 0 ? -v : v
-		}
-		function det(a,b,c,d,e,f,g,h,i) {
-			return a*(e*i-f*h)-b*(d*i-f*g)+c*(d*h-e*g)
-		}
-		function coeff(b0,b1,b2,   Da,Db,Dc) {
-			Da=det(b0,sxy,sx,b1,syy,sy,b2,sy,n)
-			Db=det(sxx,b0,sx,sxy,b1,sy,sx,b2,n)
-			Dc=det(sxx,sxy,b0,sxy,syy,b1,sx,sy,b2)
-			printf "%.9f %.9f %.9f", Da/D, Db/D, Dc/D
-		}
-		NF >= 4 {
-			x=$1/r
-			y=$2/r
-			tx=$3/w
-			ty=$4/h
-			n++
-			sxx += x*x
-			sxy += x*y
-			sx += x
-			syy += y*y
-			sy += y
-			bx0 += x*tx
-			bx1 += y*tx
-			bx2 += tx
-			by0 += x*ty
-			by1 += y*ty
-			by2 += ty
-		}
-		END {
-			if (n < 3) exit 2
-			D=det(sxx,sxy,sx,sxy,syy,sy,sx,sy,n)
-			if (abs(D) < 0.000000001) exit 2
-			coeff(bx0, bx1, bx2)
-			printf " "
-			coeff(by0, by1, by2)
-			printf " 0 0 1\n"
-		}
-	' "$1"
-}
-
 save_matrix() {
 	matrix="$1"
-	points_file="$2"
 	tmp="/tmp/touchscreen-calibration.matrix.$$"
 	{
 		echo "# PocketCHIP sun4i touchscreen -> 480x272 landscape Xorg."
 		echo "# Generated by x-chip-touch-calibrate."
-		echo "# Format: raw_x raw_y target_x target_y label"
-		awk 'NF >= 5 { printf "# point %s raw=%s,%s target=%s,%s\n", $5, $1, $2, $3, $4 }' "$points_file"
 		echo "$matrix"
 	} >"$tmp"
 	if [ "$(id -u)" = 0 ]; then
@@ -4739,79 +4495,46 @@ save_matrix() {
 	rm -f "$tmp"
 }
 
-print_fit_error() {
-	matrix="$1"
-	awk -v m="$matrix" -v w="$WIDTH" -v h="$HEIGHT" -v r="$RAW_RANGE" '
-		BEGIN { split(m, p, " ") }
-		NF >= 4 {
-			x=$1/r
-			y=$2/r
-			px=(p[1]*x + p[2]*y + p[3]) * w
-			py=(p[4]*x + p[5]*y + p[6]) * h
-			dx=px - $3
-			dy=py - $4
-			e=sqrt(dx*dx + dy*dy)
-			sum += e
-			if (e > max) max=e
-			n++
-		}
-		END {
-			if (n > 0) printf "Fit error: mean %.1f px, max %.1f px over %d points\n", sum/n, max, n
-		}
-	' "$points"
+read_back_matrix() {
+	xinput list-props "$DEVICE" 2>/dev/null | \
+		sed -n 's/^[[:space:]]*libinput Calibration Matrix ([0-9][0-9]*):[[:space:]]*//p' | \
+		head -n 1 | tr -d ','
 }
 
 need_cmd xinput
 need_cmd xset
-need_cmd dd
-need_cmd pgrep
-need_cmd pkill
+need_cmd xlibinput_calibrator
 
 wait_for_x_ready || {
 	echo "X is not ready on DISPLAY=$DISPLAY" >&2
 	exit 1
 }
 
+# The upstream xlibinput_calibrator draws the targets, rejects misclicks,
+# applies the matrix to the X device, and puts the previous matrix back if
+# the run fails. Only saving to MATRIX_FILE stays ours, so
+# x-chip-x-apply-calibration keeps reapplying the result at every session
+# start. Extra flags go through X_CHIP_CALIBRATOR_ARGS.
 : >"$LOG"
-xinput_pid=
-success=0
-
-cleanup_calibration() {
-	[ -n "${xinput_pid:-}" ] && kill "$xinput_pid" 2>/dev/null || true
-	clear_framebuffer >/dev/null 2>&1 || true
-	if [ "$success" != 1 ]; then
-		DISPLAY="$DISPLAY" x-chip-x-apply-calibration >>"$LOG" 2>&1 || true
-	fi
-	start_desktop_windows
-}
-
-trap cleanup_calibration EXIT
-trap 'exit 130' INT TERM
-
-stop_desktop_windows
-set_identity_matrix
-points=/tmp/x-chip-calibration-points.txt
-rm -f "$points"
-capture_averaged_tap top-left "$MARGIN" "$MARGIN" >>"$points" || exit 1
-capture_averaged_tap top-right "$((WIDTH - MARGIN))" "$MARGIN" >>"$points" || exit 1
-capture_averaged_tap center "$((WIDTH / 2))" "$((HEIGHT / 2))" >>"$points" || exit 1
-capture_averaged_tap bottom-left "$MARGIN" "$((HEIGHT - MARGIN))" >>"$points" || exit 1
-capture_averaged_tap bottom-right "$((WIDTH - MARGIN))" "$((HEIGHT - MARGIN))" >>"$points" || exit 1
-
-if [ "$(wc -l <"$points")" -ne 5 ]; then
-	echo "Calibration failed: expected 5 taps, got:" >&2
-	cat "$points" >&2
+echo "Tap the calibration targets on the PocketCHIP screen."
+# shellcheck disable=SC2086
+if ! xlibinput_calibrator --device-name="$DEVICE" --show-matrix \
+	${X_CHIP_CALIBRATOR_ARGS:-} >>"$LOG" 2>&1; then
+	echo "Calibration failed or was cancelled; previous calibration kept." >&2
+	echo "Log: $LOG" >&2
+	x-chip-x-apply-calibration >>"$LOG" 2>&1 || true
 	exit 1
 fi
-
-matrix="$(compute_matrix "$points")"
-save_matrix "$matrix" "$points"
-x-chip-x-apply-calibration >>"$LOG" 2>&1 || true
-success=1
-
+matrix="$(read_back_matrix)"
+if [ "$(printf '%s\n' "$matrix" | awk '{ print NF }')" != 9 ]; then
+	echo "Could not read the new matrix back; previous calibration kept." >&2
+	echo "Log: $LOG" >&2
+	x-chip-x-apply-calibration >>"$LOG" 2>&1 || true
+	exit 1
+fi
+save_matrix "$matrix"
 echo "Saved calibration matrix:"
 echo "$matrix"
-print_fit_error "$matrix"
 echo "File: $MATRIX_FILE"
 EOF
 
@@ -7100,6 +6823,8 @@ EOF
         "usr/local/bin/x-chip-x-apply-calibration" \
         "usr/local/bin/x-chip-x-keymap" \
         "usr/local/bin/x-chip-touch-calibrate" \
+        "usr/local/bin/x-chip-touch2mouse" \
+        "usr/local/bin/xlibinput_calibrator" \
         "usr/local/bin/x-chip-xorg-launch-vt" \
         "usr/local/bin/x-chip-xorg-session" \
         "usr/local/bin/x-chip-theme" \
@@ -7154,6 +6879,7 @@ install_keyboard_debug_tools
 install_hardware_debug_tools
 install_media_tools
 install_xorg_desktop_tools
+install_touch_tools
 install_user_command_symlinks
 install_rtl8812au_hotplug
 install_extra_firmware
@@ -7328,6 +7054,14 @@ if [ "${RTL8812AU_BUILD:-1}" = 1 ]; then
         echo "ERROR: packed rootfs is missing RTL8812AU module" >&2
         exit 1
     }
+fi
+if [ "${TOUCH_TOOLS_BUILD:-1}" = 1 ]; then
+    for required in ./usr/local/bin/xlibinput_calibrator ./usr/local/bin/x-chip-touch2mouse; do
+        tar -tzf "$HERE/$OUT" "$required" >/dev/null 2>&1 || {
+            echo "ERROR: packed rootfs is missing $required" >&2
+            exit 1
+        }
+    done
 fi
 
 "$HERE/scripts/07-verify-rootfs.sh" "$HERE/$OUT"

@@ -15,10 +15,17 @@ The build downloads or consumes these external components:
   License: see the individual TinyCore base and extension metadata.
 - `aircrack-ng/rtl8812au` for the optional RTL8812AU USB WiFi module.
   License: GPL-2.0, as provided by that upstream source tree.
+- `kreijack/xlibinput_calibrator` for the touchscreen calibration tool that
+  `scripts/04-build-touch-tools.sh` cross-builds into the base image.
+  License: MIT, as provided by that upstream source tree.
 - `macromorgan/chip-debroot` board patches and device-tree overlay sources.
   This repo uses it as an external source of CHIP/PocketCHIP board data.
 - `nextthingco/x-chip-tools` for FEL/U-Boot/NAND flashing support.
   This repo uses it as an external flasher; it is not bundled here.
+
+`src/x-chip-touch2mouse.c` is original code written for this repository; the
+touch-to-mouse bridge idea comes from Lana-chan's `touch2mouse`
+(`https://github.com/Lana-chan/touch2mouse`).
 
 Optional community `.tcz` extras are built only when requested with
 `scripts/09-build-community-tcz.sh`:
