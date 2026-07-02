@@ -4993,38 +4993,38 @@ EOF
     <Menu label="Music" icon="music.xpm">
       <Program label="Music Player" icon="music.xpm">aterm -bg '#0F1716' -fg '#EAF2EF' -cr '#1F7A66' -geometry 58x14+0+0 -title Music -e x-chip-music</Program>
       <Separator/>
-      <Program label="SunVox" icon="pocket.xpm">aterm -bg '#0F1716' -fg '#EAF2EF' -cr '#1F7A66' -geometry 58x14+0+0 -title SunVox -e x-chip-term-hold x-chip-sunvox</Program>
-      <Program label="PixiTracker" icon="pocket.xpm">aterm -bg '#0F1716' -fg '#EAF2EF' -cr '#1F7A66' -geometry 58x14+0+0 -title PixiTracker -e x-chip-term-hold x-chip-pixitracker</Program>
-      <Program label="PixiTracker 1Bit" icon="pocket.xpm">aterm -bg '#0F1716' -fg '#EAF2EF' -cr '#1F7A66' -geometry 58x14+0+0 -title Pixi1Bit -e x-chip-term-hold x-chip-pixitracker-1bit</Program>
-      <Program label="Pixilang" icon="pocket.xpm">aterm -bg '#0F1716' -fg '#EAF2EF' -cr '#1F7A66' -geometry 58x14+0+0 -title Pixilang -e x-chip-term-hold x-chip-pixilang</Program>
-      <Program label="GoatTracker" icon="pocket.xpm">aterm -bg '#0F1716' -fg '#EAF2EF' -cr '#1F7A66' -geometry 58x14+0+0 -title GoatTracker -e x-chip-term-hold x-chip-goattracker</Program>
+      <Program label="SunVox" icon="music.xpm">aterm -bg '#0F1716' -fg '#EAF2EF' -cr '#1F7A66' -geometry 58x14+0+0 -title SunVox -e x-chip-term-hold x-chip-sunvox</Program>
+      <Program label="PixiTracker" icon="music.xpm">aterm -bg '#0F1716' -fg '#EAF2EF' -cr '#1F7A66' -geometry 58x14+0+0 -title PixiTracker -e x-chip-term-hold x-chip-pixitracker</Program>
+      <Program label="PixiTracker 1Bit" icon="music.xpm">aterm -bg '#0F1716' -fg '#EAF2EF' -cr '#1F7A66' -geometry 58x14+0+0 -title Pixi1Bit -e x-chip-term-hold x-chip-pixitracker-1bit</Program>
+      <Program label="Pixilang" icon="music.xpm">aterm -bg '#0F1716' -fg '#EAF2EF' -cr '#1F7A66' -geometry 58x14+0+0 -title Pixilang -e x-chip-term-hold x-chip-pixilang</Program>
+      <Program label="GoatTracker" icon="music.xpm">aterm -bg '#0F1716' -fg '#EAF2EF' -cr '#1F7A66' -geometry 58x14+0+0 -title GoatTracker -e x-chip-term-hold x-chip-goattracker</Program>
     </Menu>
     <Menu label="Games" icon="game.xpm">
       <Program label="Game Launcher" icon="game.xpm">aterm -bg '#0F1716' -fg '#EAF2EF' -cr '#1F7A66' -geometry 58x14+0+0 -title Games -e x-chip-games</Program>
       <Separator/>
-      <Program label="Doom" icon="pocket.xpm">aterm -bg '#0F1716' -fg '#EAF2EF' -cr '#1F7A66' -geometry 58x14+0+0 -title Doom -e x-chip-term-hold x-chip-doom run</Program>
-      <Program label="PICO-8" icon="pocket.xpm">aterm -bg '#0F1716' -fg '#EAF2EF' -cr '#1F7A66' -geometry 58x14+0+0 -title PICO-8 -e x-chip-pico8 menu</Program>
-      <Program label="TIC-80" icon="pocket.xpm">x-chip-game-launch x-chip-tic80 run</Program>
+      <Program label="Doom" icon="game.xpm">aterm -bg '#0F1716' -fg '#EAF2EF' -cr '#1F7A66' -geometry 58x14+0+0 -title Doom -e x-chip-term-hold x-chip-doom run</Program>
+      <Program label="PICO-8" icon="game.xpm">aterm -bg '#0F1716' -fg '#EAF2EF' -cr '#1F7A66' -geometry 58x14+0+0 -title PICO-8 -e x-chip-pico8 menu</Program>
+      <Program label="TIC-80" icon="game.xpm">x-chip-game-launch x-chip-tic80 run</Program>
       <Menu label="Game Boy" icon="game.xpm">
-        <Program label="Game Boy Launcher" icon="pocket.xpm">aterm -bg '#0F1716' -fg '#EAF2EF' -cr '#1F7A66' -geometry 58x14+0+0 -title GameBoy -e x-chip-mgba</Program>
-        <Program label="2048 GB" icon="pocket.xpm">x-chip-game-launch x-chip-mgba play 2048</Program>
-        <Program label="uCity" icon="pocket.xpm">x-chip-game-launch x-chip-mgba play ucity</Program>
+        <Program label="Game Boy Launcher" icon="game.xpm">aterm -bg '#0F1716' -fg '#EAF2EF' -cr '#1F7A66' -geometry 58x14+0+0 -title GameBoy -e x-chip-mgba</Program>
+        <Program label="2048 GB" icon="game.xpm">x-chip-game-launch x-chip-mgba play 2048</Program>
+        <Program label="uCity" icon="game.xpm">x-chip-game-launch x-chip-mgba play ucity</Program>
         <Separator/>
         <Program label="Game Boy Status" icon="monitor.xpm">aterm -bg '#0F1716' -fg '#EAF2EF' -cr '#1F7A66' -geometry 58x14+0+0 -title mGBA -e x-chip-term-hold x-chip-mgba status</Program>
       </Menu>
-      <Menu label="TIC-80 Games" icon="pocket.xpm">
-        <Program label="8 Bit Panda" icon="pocket.xpm">x-chip-game-launch x-chip-tic80 play 8-bit-panda</Program>
-        <Program label="Stele" icon="pocket.xpm">x-chip-game-launch x-chip-tic80 play stele</Program>
-        <Program label="Balmung" icon="pocket.xpm">x-chip-game-launch x-chip-tic80 play balmung</Program>
-        <Program label="Supernova" icon="pocket.xpm">x-chip-game-launch x-chip-tic80 play supernova</Program>
-        <Program label="Turns of War" icon="pocket.xpm">x-chip-game-launch x-chip-tic80 play turns-of-war</Program>
-        <Program label="Cauliflower Power" icon="pocket.xpm">x-chip-game-launch x-chip-tic80 play cauliflower-power</Program>
-        <Program label="Minetic" icon="pocket.xpm">x-chip-game-launch x-chip-tic80 play minetic</Program>
-        <Program label="Powder Game" icon="pocket.xpm">x-chip-game-launch x-chip-tic80 play powder-game</Program>
-        <Program label="Secret Agents" icon="pocket.xpm">x-chip-game-launch x-chip-tic80 play secret-agents</Program>
-        <Program label="Komet" icon="pocket.xpm">x-chip-game-launch x-chip-tic80 play komet</Program>
-        <Program label="The Sky House" icon="pocket.xpm">x-chip-game-launch x-chip-tic80 play the-sky-house</Program>
-        <Program label="TIC-Sweeper" icon="pocket.xpm">x-chip-game-launch x-chip-tic80 play tic-sweeper</Program>
+      <Menu label="TIC-80 Games" icon="game.xpm">
+        <Program label="8 Bit Panda" icon="game.xpm">x-chip-game-launch x-chip-tic80 play 8-bit-panda</Program>
+        <Program label="Stele" icon="game.xpm">x-chip-game-launch x-chip-tic80 play stele</Program>
+        <Program label="Balmung" icon="game.xpm">x-chip-game-launch x-chip-tic80 play balmung</Program>
+        <Program label="Supernova" icon="game.xpm">x-chip-game-launch x-chip-tic80 play supernova</Program>
+        <Program label="Turns of War" icon="game.xpm">x-chip-game-launch x-chip-tic80 play turns-of-war</Program>
+        <Program label="Cauliflower Power" icon="game.xpm">x-chip-game-launch x-chip-tic80 play cauliflower-power</Program>
+        <Program label="Minetic" icon="game.xpm">x-chip-game-launch x-chip-tic80 play minetic</Program>
+        <Program label="Powder Game" icon="game.xpm">x-chip-game-launch x-chip-tic80 play powder-game</Program>
+        <Program label="Secret Agents" icon="game.xpm">x-chip-game-launch x-chip-tic80 play secret-agents</Program>
+        <Program label="Komet" icon="game.xpm">x-chip-game-launch x-chip-tic80 play komet</Program>
+        <Program label="The Sky House" icon="game.xpm">x-chip-game-launch x-chip-tic80 play the-sky-house</Program>
+        <Program label="TIC-Sweeper" icon="game.xpm">x-chip-game-launch x-chip-tic80 play tic-sweeper</Program>
       </Menu>
       <Separator/>
       <Program label="TIC-80 Manager" icon="apps.xpm">aterm -bg '#0F1716' -fg '#EAF2EF' -cr '#1F7A66' -geometry 58x14+0+0 -title TIC-80 -e x-chip-tic80 menu</Program>
