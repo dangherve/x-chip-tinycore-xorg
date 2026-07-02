@@ -205,6 +205,15 @@ JWM uses a small local XPM icon set (`/usr/local/share/x-chip/xorg/icons`),
 GTK apps use the matching `x-chip` icon theme, and the default wallpaper is
 `/usr/local/share/x-chip/xorg/wallpapers/pocket-core.png`.
 
+Change the whole look from one place: `Menu > Pocket > Theme` (or
+`x-chip-theme` in a terminal) switches between five coordinated themes
+(`pocket`, `mashdark`, `modarin`, `sand`, `greenpurple`). One choice recolors
+JWM, the terminals, and GTK apps, and picks the matching Midnight Commander
+skin. `x-chip-theme list` shows color previews. The default `pocket` theme
+never rewrites your manually edited configs; a non-default theme owns
+`~/.jwmrc`, `~/.Xdefaults`, and `~/.gtkrc-2.0` and reapplies itself after
+system updates.
+
 Manual desktop control:
 
 ```sh

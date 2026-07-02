@@ -323,6 +323,7 @@ for required in \
     usr/local/bin/x-chip-power-status \
     usr/local/bin/x-chip-term-hold \
     usr/local/bin/x-chip-mc \
+    usr/local/bin/x-chip-theme \
     usr/local/bin/x-chip-status \
     usr/local/bin/x-chip-calc \
     usr/local/bin/x-chip-time \
@@ -375,6 +376,18 @@ for required in \
     usr/local/share/x-chip/xorg/jwmrc \
     usr/local/share/x-chip/xorg/mc.ini \
     usr/local/share/mc/skins/pocketclean256.ini \
+    usr/local/share/mc/skins/gray-green-purple256.ini \
+    usr/local/share/mc/skins/mashdark256.ini \
+    usr/local/share/mc/skins/modarin256.ini \
+    usr/local/share/mc/skins/sand256.ini \
+    usr/local/share/x-chip/themes/pocket.conf \
+    usr/local/share/x-chip/themes/mashdark.conf \
+    usr/local/share/x-chip/themes/modarin.conf \
+    usr/local/share/x-chip/themes/sand.conf \
+    usr/local/share/x-chip/themes/greenpurple.conf \
+    usr/local/etc/x-chip/theme.conf \
+    usr/local/etc/x-chip/mc-skin.conf \
+    etc/profile.d/x-chip-mc-skin.sh \
     usr/local/share/x-chip/xorg/wallpapers/pocket-core.png \
     usr/local/share/x-chip/xorg/Xdefaults \
     usr/local/share/x-chip/xorg/mc-media.ext.ini \
@@ -641,6 +654,7 @@ require_mode_pattern usr/local/bin/x-chip-keyboard-status '-rwx*'
 require_mode_pattern usr/local/bin/x-chip-audio-status '-rwx*'
 require_mode_pattern usr/local/bin/x-chip-power-status '-rwx*'
 require_mode_pattern usr/local/bin/x-chip-term-hold '-rwx*'
+require_mode_pattern usr/local/bin/x-chip-theme '-rwx*'
 require_mode_pattern usr/local/bin/x-chip-status '-rwx*'
 require_mode_pattern usr/local/bin/x-chip-calc '-rwx*'
 require_mode_pattern usr/local/bin/x-chip-time '-rwx*'
@@ -1400,6 +1414,27 @@ require_content usr/local/share/mc/skins/pocketclean256.ini 'description = Pocke
 require_content usr/local/share/mc/skins/pocketclean256.ini '256colors = true'
 require_content usr/local/share/mc/skins/pocketclean256.ini 'main1 = rgb023'
 require_content usr/local/share/mc/skins/pocketclean256.ini 'main2 = rgb455'
+require_content usr/local/share/mc/skins/pocketclean256.ini 'lefttop = ╭'
+require_content usr/local/share/mc/skins/pocketclean256.ini 'directory = ;;bold'
+require_content usr/local/share/mc/skins/gray-green-purple256.ini '256colors = true'
+require_content usr/local/share/mc/skins/mashdark256.ini '256colors = true'
+require_content usr/local/share/mc/skins/modarin256.ini '256colors = true'
+require_content usr/local/share/mc/skins/sand256.ini '256colors = true'
+# One knob, everything follows: x-chip-theme recolors the per-user desktop
+# configs and picks the matching mc skin through the two state files.
+require_content usr/local/etc/x-chip/theme.conf 'THEME=pocket'
+require_content usr/local/etc/x-chip/mc-skin.conf 'MC_SKIN=pocketclean256'
+require_content usr/local/bin/x-chip-mc '/usr/local/etc/x-chip/mc-skin.conf'
+require_content etc/profile.d/x-chip-mc-skin.sh '/usr/local/etc/x-chip/mc-skin.conf'
+require_content usr/local/bin/x-chip-theme 'THEME_DIR=/usr/local/share/x-chip/themes'
+require_content usr/local/bin/x-chip-theme "BASE_ACCENT='#1F7A66'"
+require_content usr/local/bin/x-chip-theme 'jwm -restart'
+require_content usr/local/share/x-chip/themes/pocket.conf 'THEME_MC_SKIN=pocketclean256'
+require_content usr/local/share/x-chip/themes/pocket.conf 'THEME_ACCENT=#1F7A66'
+require_content usr/local/share/x-chip/themes/sand.conf 'THEME_MC_SKIN=sand256'
+require_content usr/local/bin/x-chip-xorg-session 'x-chip-theme apply'
+require_content usr/local/share/x-chip/xorg/jwmrc 'label="Theme" icon="image.xpm"'
+require_content usr/local/share/x-chip/xorg/jwmrc 'x-chip-term-hold x-chip-theme'
 require_content usr/local/share/x-chip/xorg/jwmrc '#0F1716'
 require_content usr/local/share/x-chip/xorg/jwmrc '#EAF2EF'
 require_content usr/local/share/x-chip/xorg/jwmrc '#1F7A66'
@@ -1481,6 +1516,7 @@ for script in \
     usr/local/bin/x-chip-power-status \
     usr/local/bin/x-chip-term-hold \
     usr/local/bin/x-chip-mc \
+    usr/local/bin/x-chip-theme \
     usr/local/bin/x-chip-status \
     usr/local/bin/x-chip-calc \
     usr/local/bin/x-chip-time \

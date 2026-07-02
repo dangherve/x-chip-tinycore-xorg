@@ -711,6 +711,15 @@ EOF
     install_text 0644 "$RFS/usr/local/etc/x-chip/desktop-stats.conf" <<EOF
 X_CHIP_DESKTOP_STATS=${X_CHIP_DESKTOP_STATS:-0}
 EOF
+    # System theme and matching Midnight Commander skin, both managed by
+    # x-chip-theme. The shipped configs always carry the default pocket
+    # palette; a non-default theme only rewrites the per-user copies.
+    install_text 0644 "$RFS/usr/local/etc/x-chip/theme.conf" <<'EOF'
+THEME=pocket
+EOF
+    install_text 0644 "$RFS/usr/local/etc/x-chip/mc-skin.conf" <<'EOF'
+MC_SKIN=pocketclean256
+EOF
     install_text 0644 "$RFS/usr/local/etc/x-chip/wifi.conf" <<'EOF'
 X_CHIP_WIFI_CLIENT_DRIVER=rtl8723bs
 X_CHIP_WIFI_SCAN_DRIVER=rtl8812au
@@ -842,6 +851,10 @@ case "${TERM:-}" in
 		;;
 esac
 
+# The central skin choice written by x-chip-theme; the environment wins.
+if [ -z "${MC_SKIN:-}" ] && [ -r /usr/local/etc/x-chip/mc-skin.conf ]; then
+	. /usr/local/etc/x-chip/mc-skin.conf
+fi
 MC_SKIN=${MC_SKIN:-pocketclean256}
 export MC_SKIN
 
@@ -880,6 +893,210 @@ ensure_x_chip_mc_ext() {
 
 ensure_x_chip_mc_ext
 exec mc "$@"
+EOF
+
+    # Plain `mc` from any login shell picks up the central skin choice too.
+    need_root install -d "$RFS/etc/profile.d"
+    install_text 0644 "$RFS/etc/profile.d/x-chip-mc-skin.sh" <<'EOF'
+# Central Midnight Commander skin choice; managed by x-chip-theme.
+if [ -z "$MC_SKIN" ] && [ -r /usr/local/etc/x-chip/mc-skin.conf ]; then
+	. /usr/local/etc/x-chip/mc-skin.conf
+	export MC_SKIN
+fi
+EOF
+
+    install_text 0755 "$RFS/usr/local/bin/x-chip-theme" <<'EOF'
+#!/bin/sh
+# System theme manager. One choice recolors the desktop (JWM, aterm, GTK2)
+# and switches to the matching Midnight Commander skin. The shipped defaults
+# always carry the pocket palette; a non-default theme only rewrites the
+# per-user copies, and the desktop session reapplies the theme on top of
+# whatever a system update shipped.
+
+THEME_DIR=/usr/local/share/x-chip/themes
+SHARE=/usr/local/share/x-chip/xorg
+STATE=/usr/local/etc/x-chip/theme.conf
+MC_STATE=/usr/local/etc/x-chip/mc-skin.conf
+
+# The pocket palette exactly as it appears in the shipped configs.
+BASE_BG='#0F1716'
+BASE_PANEL='#223331'
+BASE_ACCENT='#1F7A66'
+BASE_FG='#EAF2EF'
+BASE_MUTED='#6A7A75'
+
+as_root() {
+	if [ "$(id -u)" = 0 ]; then
+		"$@"
+	else
+		sudo "$@"
+	fi
+}
+
+die() {
+	echo "ERROR: $*" >&2
+	exit 1
+}
+
+current_theme() {
+	theme=$(sed -n 's/^THEME=//p' "$STATE" 2>/dev/null | head -n 1)
+	[ -n "$theme" ] || theme=pocket
+	printf '%s\n' "$theme"
+}
+
+load_theme() {
+	THEME_LABEL= THEME_BG= THEME_PANEL= THEME_ACCENT= THEME_FG= THEME_MUTED= THEME_MC_SKIN= THEME_PREVIEW=
+	[ -f "$THEME_DIR/$1.conf" ] || die "unknown theme: $1 (run: x-chip-theme list)"
+	. "$THEME_DIR/$1.conf"
+	[ -n "$THEME_BG" ] && [ -n "$THEME_ACCENT" ] && [ -n "$THEME_MC_SKIN" ] || \
+		die "incomplete theme definition: $1"
+}
+
+preview_blocks() {
+	for c in $THEME_PREVIEW; do
+		printf '\033[48;5;%sm  \033[0m' "$c"
+	done
+}
+
+list_themes() {
+	cur=$(current_theme)
+	for conf in "$THEME_DIR"/*.conf; do
+		[ -f "$conf" ] || continue
+		name=${conf##*/}
+		name=${name%.conf}
+		load_theme "$name"
+		if [ "$name" = "$cur" ]; then
+			mark='*'
+		else
+			mark=' '
+		fi
+		printf ' %s %-12s ' "$mark" "$name"
+		preview_blocks
+		printf '  %s\n' "$THEME_LABEL"
+	done
+}
+
+recolor() {
+	sed \
+		-e "s/$BASE_BG/$THEME_BG/g" \
+		-e "s/$BASE_PANEL/$THEME_PANEL/g" \
+		-e "s/$BASE_ACCENT/$THEME_ACCENT/g" \
+		-e "s/$BASE_FG/$THEME_FG/g" \
+		-e "s/$BASE_MUTED/$THEME_MUTED/g"
+}
+
+user_configs() {
+	printf '%s\n' "jwmrc:.jwmrc" "Xdefaults:.Xdefaults" "gtkrc-2.0:.gtkrc-2.0"
+}
+
+apply_user_configs() {
+	# The pocket theme never touches the user copies, so manual
+	# customizations keep working as long as the default theme is active.
+	[ "$1" = pocket ] && return 0
+	user_configs | while IFS= read -r pair; do
+		src=$SHARE/${pair%%:*}
+		dst=$HOME/${pair#*:}
+		[ -r "$src" ] || continue
+		recolor <"$src" >"$dst.tmp.$$" && mv "$dst.tmp.$$" "$dst"
+	done
+	# Keep the shipped-copy tracker current so update refreshes stay sane.
+	[ -r "$SHARE/jwmrc" ] && cp "$SHARE/jwmrc" "$HOME/.jwmrc.shipped" 2>/dev/null
+	return 0
+}
+
+restore_user_configs() {
+	user_configs | while IFS= read -r pair; do
+		src=$SHARE/${pair%%:*}
+		dst=$HOME/${pair#*:}
+		[ -r "$src" ] || continue
+		cp "$src" "$dst"
+	done
+	[ -r "$SHARE/jwmrc" ] && cp "$SHARE/jwmrc" "$HOME/.jwmrc.shipped" 2>/dev/null
+	return 0
+}
+
+refresh_desktop() {
+	[ -n "${DISPLAY:-}" ] || DISPLAY=:0
+	export DISPLAY
+	if command -v xrdb >/dev/null 2>&1 && [ -f "$HOME/.Xdefaults" ]; then
+		xrdb -merge "$HOME/.Xdefaults" >/dev/null 2>&1 || true
+	fi
+	if pidof jwm >/dev/null 2>&1; then
+		jwm -restart >/dev/null 2>&1 || true
+	fi
+}
+
+write_conf() {
+	if [ -w "$1" ] || { [ ! -e "$1" ] && [ -w "${1%/*}" ]; }; then
+		cat >"$1"
+	else
+		as_root tee "$1" >/dev/null
+	fi
+}
+
+write_state() {
+	printf 'THEME=%s\n' "$1" | write_conf "$STATE" || \
+		die "cannot write $STATE"
+	printf 'MC_SKIN=%s\n' "$THEME_MC_SKIN" | write_conf "$MC_STATE" || \
+		die "cannot write $MC_STATE"
+	if command -v filetool.sh >/dev/null 2>&1; then
+		filetool.sh -b >/tmp/x-chip-theme-filetool.log 2>&1 || true
+	fi
+}
+
+set_theme() {
+	load_theme "$1"
+	write_state "$1"
+	if [ "$1" = pocket ]; then
+		restore_user_configs
+	else
+		apply_user_configs "$1"
+	fi
+	refresh_desktop
+	echo "Theme set to $1 (mc skin: $THEME_MC_SKIN)."
+	echo "Open apps keep the old colors until they restart."
+}
+
+menu() {
+	echo "x-chip themes:"
+	echo
+	list_themes
+	echo
+	printf 'Theme name (enter keeps %s): ' "$(current_theme)"
+	read -r choice || return 0
+	[ -n "$choice" ] || {
+		echo "Theme unchanged."
+		return 0
+	}
+	set_theme "$choice"
+}
+
+case "${1:-}" in
+	'')
+		menu
+		;;
+	list)
+		list_themes
+		;;
+	status)
+		name=$(current_theme)
+		load_theme "$name"
+		printf 'theme: %s\nmc skin: %s\n' "$name" "$THEME_MC_SKIN"
+		;;
+	set)
+		[ -n "${2:-}" ] || die "usage: x-chip-theme set NAME"
+		set_theme "$2"
+		;;
+	apply)
+		name=$(current_theme)
+		load_theme "$name"
+		apply_user_configs "$name"
+		;;
+	*)
+		echo "usage: x-chip-theme [list|status|set NAME|apply]" >&2
+		exit 2
+		;;
+esac
 EOF
 
     install_text 0755 "$RFS/usr/local/bin/x-chip-status" <<'EOF'
@@ -4678,6 +4895,15 @@ if [ -f "$SHIPPED_JWMRC" ]; then
 	fi
 fi
 
+# Reapply the selected system theme on top of the refreshed configs; the
+# shipped files always carry the default pocket palette.
+if command -v x-chip-theme >/dev/null 2>&1; then
+	x-chip-theme apply >/tmp/x-chip-theme.log 2>&1 || true
+	if [ -f "$HOME/.Xdefaults" ] && command -v xrdb >/dev/null 2>&1; then
+		xrdb -merge "$HOME/.Xdefaults" >>/tmp/xrdb.log 2>&1 || true
+	fi
+fi
+
 case "$X_CHIP_WM" in
 	flwm)
 		exec flwm
@@ -4793,12 +5019,21 @@ EOF
     need_root install -d "$RFS/usr/local/share/mc/skins"
     for skin in config/mc-skins/*.ini; do
         [ -f "$skin" ] || continue
+        # gray-orange-blue256 ships only under its pocketclean256 name below,
+        # so the theme chooser does not list the same skin twice.
+        case "${skin##*/}" in gray-orange-blue256.ini) continue ;; esac
         need_root install -m 0644 "$skin" "$RFS/usr/local/share/mc/skins/${skin##*/}"
     done
     if [ -f config/mc-skins/gray-orange-blue256.ini ]; then
         need_root install -m 0644 config/mc-skins/gray-orange-blue256.ini \
             "$RFS/usr/local/share/mc/skins/pocketclean256.ini"
     fi
+    # System theme definitions consumed by x-chip-theme.
+    need_root install -d "$RFS/usr/local/share/x-chip/themes"
+    for theme in config/themes/*.conf; do
+        [ -f "$theme" ] || continue
+        need_root install -m 0644 "$theme" "$RFS/usr/local/share/x-chip/themes/${theme##*/}"
+    done
     install_text 0644 "$RFS/usr/local/share/x-chip/xorg/mc.ini" <<'EOF'
 [Midnight-Commander]
 skin=pocketclean256
@@ -5060,6 +5295,7 @@ EOF
         <Program label="Status" icon="monitor.xpm">aterm -bg '#0F1716' -fg '#EAF2EF' -cr '#1F7A66' -geometry 58x14+0+0 -title Stats -e x-chip-term-hold x-chip-desktop-stats status</Program>
       </Menu>
       <Program label="Audio Mixer" icon="pocket.xpm">aterm -bg '#0F1716' -fg '#EAF2EF' -cr '#1F7A66' -geometry 58x14+0+0 -title Audio -e alsamixer</Program>
+      <Program label="Theme" icon="image.xpm">aterm -bg '#0F1716' -fg '#EAF2EF' -cr '#1F7A66' -geometry 58x15+0+0 -title Theme -e x-chip-term-hold x-chip-theme</Program>
       <Program label="System Update" icon="refresh.xpm">aterm -bg '#0F1716' -fg '#EAF2EF' -cr '#1F7A66' -geometry 58x14+0+0 -title Update -e x-chip-term-hold sudo x-chip-update</Program>
       <Separator/>
       <Program label="Reboot" icon="refresh.xpm">aterm -bg '#0F1716' -fg '#EAF2EF' -cr '#1F7A66' -geometry 58x14+0+0 -title Reboot -e x-chip-shutdown reboot</Program>
@@ -6836,6 +7072,12 @@ EOF
         "usr/local/bin/x-chip-touch-calibrate" \
         "usr/local/bin/x-chip-xorg-launch-vt" \
         "usr/local/bin/x-chip-xorg-session" \
+        "usr/local/bin/x-chip-theme" \
+        "usr/local/etc/x-chip/theme.conf" \
+        "usr/local/etc/x-chip/mc-skin.conf" \
+        "etc/profile.d/x-chip-mc-skin.sh" \
+        "usr/local/share/x-chip/themes" \
+        "usr/local/share/mc/skins" \
         "usr/local/etc/X11/xorg.conf.d" \
         "etc/X11/xorg.conf.d" \
         "usr/local/share/x-chip/xorg" \
@@ -6971,6 +7213,19 @@ for required in \
     ./usr/local/share/x-chip/xorg/jwmrc \
     ./usr/local/share/x-chip/xorg/mc.ini \
     ./usr/local/share/mc/skins/pocketclean256.ini \
+    ./usr/local/share/mc/skins/gray-green-purple256.ini \
+    ./usr/local/share/mc/skins/mashdark256.ini \
+    ./usr/local/share/mc/skins/modarin256.ini \
+    ./usr/local/share/mc/skins/sand256.ini \
+    ./usr/local/bin/x-chip-theme \
+    ./usr/local/etc/x-chip/theme.conf \
+    ./usr/local/etc/x-chip/mc-skin.conf \
+    ./etc/profile.d/x-chip-mc-skin.sh \
+    ./usr/local/share/x-chip/themes/pocket.conf \
+    ./usr/local/share/x-chip/themes/mashdark.conf \
+    ./usr/local/share/x-chip/themes/modarin.conf \
+    ./usr/local/share/x-chip/themes/sand.conf \
+    ./usr/local/share/x-chip/themes/greenpurple.conf \
     ./usr/local/share/x-chip/xorg/wallpapers/pocket-core.png \
     ./usr/local/share/x-chip/xorg/Xdefaults \
     ./usr/local/share/x-chip/xorg/mc-media.ext.ini \

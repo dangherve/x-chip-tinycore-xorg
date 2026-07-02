@@ -81,6 +81,23 @@ them removed or credited, open an issue on this repository and they will be
 replaced in the next release. Users can delete them from `~/Music`,
 `~/Pictures`, and `~/Videos` at any time.
 
+## Bundled Midnight Commander Skins
+
+`config/mc-skins/` vendors these community skins, installed into the image
+under `/usr/local/share/mc/skins/`:
+
+- `mashdark256.ini` from `https://github.com/notnout/mashdark`.
+  License: as provided by that upstream repository.
+- `modarin256.ini` by Oliver Lange, from the Midnight Commander skin
+  collection (`https://github.com/MidnightCommander/skins`).
+  License: as provided by the mc project (GPL-3.0-or-later).
+- `sand256.ini` and `gray-green-purple256.ini` from the Midnight Commander
+  skin collection (`https://github.com/MidnightCommander/skins`).
+  License: as provided by the mc project (GPL-3.0-or-later).
+
+`gray-orange-blue256.ini` (shipped as `pocketclean256.ini`) is this project's
+own skin, derived from the same skin format.
+
 ## Firmware
 
 The image may include Realtek RTL8723BS firmware. For private builds this can be

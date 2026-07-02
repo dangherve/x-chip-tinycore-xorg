@@ -35,7 +35,7 @@ tar -tzf "$ROOTFS" >"$LIST"
 # found in archive". Pass whole directories plus non-overlapping file matches.
 collect_members() {
     local prefix app
-    for prefix in ./boot/ ./lib/modules/ ./lib/firmware/nextthingco/ ./opt/ ./usr/local/share/x-chip/; do
+    for prefix in ./boot/ ./lib/modules/ ./lib/firmware/nextthingco/ ./opt/ ./usr/local/share/x-chip/ ./usr/local/share/mc/; do
         if grep -Fxq "$prefix" "$LIST"; then
             printf '%s\n' "$prefix"
         else
@@ -43,6 +43,7 @@ collect_members() {
         fi
     done
     grep -E '^\./usr/local/(bin|sbin)/x-chip' "$LIST" || true
+    grep -E '^\./etc/profile\.d/x-chip-mc-skin\.sh$' "$LIST" || true
     grep -E '^\./tce/[^/]+\.lst$' "$LIST" || true
     for app in "${COMMUNITY_APPS[@]}"; do
         grep -E "^\./tce/optional/$app\.tcz" "$LIST" || true
