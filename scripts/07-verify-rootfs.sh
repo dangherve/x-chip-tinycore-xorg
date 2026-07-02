@@ -27,6 +27,11 @@ case "$SSH_PASSWORD_AUTH" in
     *) echo "ERROR: SSH_PASSWORD_AUTH must be 0 or 1" >&2; exit 1 ;;
 esac
 
+case "${IMAGE_VARIANT:-xorg}" in
+    xorg|headless) ;;
+    *) echo "ERROR: IMAGE_VARIANT must be xorg or headless, got: $IMAGE_VARIANT" >&2; exit 1 ;;
+esac
+
 ROOTFS=${1:-${ROOTFS:-$OUT}}
 
 [ -f "$ROOTFS" ] || {
@@ -354,15 +359,6 @@ for required in \
     usr/local/bin/x-chip-touch-calibrate \
     usr/local/bin/x-chip-xorg-launch-vt \
     usr/local/bin/x-chip-xorg-session \
-    usr/local/bin/Xorg \
-    usr/local/lib/xorg/Xorg \
-    usr/local/lib/xorg/Xorg.wrap \
-    usr/local/lib/xorg/modules/drivers/fbdev_drv.so \
-    usr/local/lib/xorg/modules/input/libinput_drv.so \
-    usr/local/bin/jwm \
-    usr/local/bin/aterm \
-    usr/local/bin/xrandr \
-    usr/local/bin/xinput \
     usr/local/sbin/sshd \
     usr/local/share/x-chip/materialized-tcz.lst \
     usr/local/bin/iw \
@@ -459,10 +455,36 @@ for required in \
     lib/firmware/nextthingco/chip/early/x-chip-dip-hdmi-popcorn.dtbo \
     lib/firmware/rtlwifi/rtl8723bs_nic.bin \
     tce/onboot.lst \
-    tce/media.lst \
-    tce/xorg.lst; do
+    tce/media.lst; do
     require_entry "$required"
 done
+
+# The Xorg stack is materialized into the image from tce/xorg.lst. The xorg
+# variant must ship it; the headless variant must not.
+if [ "$IMAGE_VARIANT" != headless ]; then
+    for required in \
+        usr/local/bin/Xorg \
+        usr/local/lib/xorg/Xorg \
+        usr/local/lib/xorg/Xorg.wrap \
+        usr/local/lib/xorg/modules/drivers/fbdev_drv.so \
+        usr/local/lib/xorg/modules/input/libinput_drv.so \
+        usr/local/bin/jwm \
+        usr/local/bin/aterm \
+        usr/local/bin/xrandr \
+        usr/local/bin/xinput \
+        usr/local/share/X11/xorg.conf.d/40-libinput.conf \
+        tce/xorg.lst; do
+        require_entry "$required"
+    done
+else
+    for absent in \
+        usr/local/bin/Xorg \
+        usr/local/lib/xorg/Xorg \
+        usr/local/bin/jwm \
+        tce/xorg.lst; do
+        reject_entry "$absent"
+    done
+fi
 
 for root_owned in \
     bin/busybox \
@@ -520,15 +542,6 @@ for root_owned in \
     usr/local/bin/x-chip-touch-calibrate \
     usr/local/bin/x-chip-xorg-launch-vt \
     usr/local/bin/x-chip-xorg-session \
-    usr/local/bin/Xorg \
-    usr/local/lib/xorg/Xorg \
-    usr/local/lib/xorg/Xorg.wrap \
-    usr/local/lib/xorg/modules/drivers/fbdev_drv.so \
-    usr/local/lib/xorg/modules/input/libinput_drv.so \
-    usr/local/bin/jwm \
-    usr/local/bin/aterm \
-    usr/local/bin/xrandr \
-    usr/local/bin/xinput \
     usr/local/sbin/sshd \
     usr/local/etc/X11/xorg.conf.d/20-pocketchip-fbdev.conf \
     etc/X11/xorg.conf.d/20-pocketchip-fbdev.conf \
@@ -600,6 +613,21 @@ for root_owned in \
     require_owner "$root_owned" "0/0"
 done
 
+if [ "$IMAGE_VARIANT" != headless ]; then
+    for root_owned in \
+        usr/local/bin/Xorg \
+        usr/local/lib/xorg/Xorg \
+        usr/local/lib/xorg/Xorg.wrap \
+        usr/local/lib/xorg/modules/drivers/fbdev_drv.so \
+        usr/local/lib/xorg/modules/input/libinput_drv.so \
+        usr/local/bin/jwm \
+        usr/local/bin/aterm \
+        usr/local/bin/xrandr \
+        usr/local/bin/xinput; do
+        require_owner "$root_owned" "0/0"
+    done
+fi
+
 require_mode_pattern bin/busybox.suid '-rws*'
 require_mode_pattern usr/bin/sudo '-rws*'
 require_mode_pattern etc/shadow '-rw-------'
@@ -642,13 +670,15 @@ require_mode_pattern usr/local/bin/x-chip-x-keymap '-rwx*'
 require_mode_pattern usr/local/bin/x-chip-touch-calibrate '-rwx*'
 require_mode_pattern usr/local/bin/x-chip-xorg-launch-vt '-rwx*'
 require_mode_pattern usr/local/bin/x-chip-xorg-session '-rwx*'
-require_mode_pattern usr/local/bin/Xorg '-rwx*'
-require_mode_pattern usr/local/lib/xorg/Xorg '-rws*'
-require_mode_pattern usr/local/lib/xorg/Xorg.wrap '-r-s*'
-require_mode_pattern usr/local/bin/jwm '-rwx*'
-require_mode_pattern usr/local/bin/aterm '-rwx*'
-require_mode_pattern usr/local/bin/xrandr '-rwx*'
-require_mode_pattern usr/local/bin/xinput '-rwx*'
+if [ "$IMAGE_VARIANT" != headless ]; then
+    require_mode_pattern usr/local/bin/Xorg '-rwx*'
+    require_mode_pattern usr/local/lib/xorg/Xorg '-rws*'
+    require_mode_pattern usr/local/lib/xorg/Xorg.wrap '-r-s*'
+    require_mode_pattern usr/local/bin/jwm '-rwx*'
+    require_mode_pattern usr/local/bin/aterm '-rwx*'
+    require_mode_pattern usr/local/bin/xrandr '-rwx*'
+    require_mode_pattern usr/local/bin/xinput '-rwx*'
+fi
 require_mode_pattern usr/local/sbin/sshd '-rwx*'
 require_nonempty usr/share/kmap/pocketchip.kmap
 require_nonempty usr/share/kmap/pocketchip.loadkeys
@@ -820,6 +850,13 @@ require_content usr/local/bin/x-chip-update 'ensure_clock'
 require_content usr/local/bin/x-chip-update 'rootfs_built_at_epoch'
 require_nonempty usr/local/share/x-chip/update-repo
 require_nonempty usr/local/share/x-chip/release-info
+# The variant marker steers which update pack x-chip-update downloads. Only
+# headless images carry it; a missing marker means xorg (pre-variant devices).
+if [ "$IMAGE_VARIANT" = headless ]; then
+    require_content usr/local/share/x-chip/release-info 'image_variant=headless'
+else
+    reject_content usr/local/share/x-chip/release-info 'image_variant='
+fi
 require_content opt/x-chip-boot.sh 'Boot runtime complete'
 require_content opt/x-chip-boot.sh 'touch "$RUN_MARKER"'
 require_content opt/x-chip-boot.sh 'touch "$CONSOLE_READY"'
@@ -1100,20 +1137,29 @@ require_content usr/local/bin/x-chip-logs '/opt/x-chip-boot.log'
 require_content usr/local/bin/x-chip-logs '/var/log/x-chip-desktop.log'
 require_content usr/local/bin/x-chip-logs '/tmp/Xorg.0.log'
 require_content usr/local/etc/x-chip/display.conf 'LCD_BRIGHTNESS='
-require_content usr/local/etc/x-chip/desktop.conf 'X_CHIP_DESKTOP_AUTOSTART=1'
+if [ "$IMAGE_VARIANT" = headless ]; then
+    require_content usr/local/etc/x-chip/desktop.conf 'X_CHIP_DESKTOP_AUTOSTART=0'
+else
+    require_content usr/local/etc/x-chip/desktop.conf 'X_CHIP_DESKTOP_AUTOSTART=1'
+fi
 require_content usr/local/etc/x-chip/desktop-stats.conf 'X_CHIP_DESKTOP_STATS=0'
 require_content usr/local/etc/x-chip/wifi.conf 'X_CHIP_WIFI_CLIENT_DRIVER=rtl8723bs'
 require_content usr/local/etc/x-chip/wifi.conf 'X_CHIP_WIFI_SCAN_DRIVER=rtl8812au'
 require_content usr/local/share/x-chip/materialized-tcz.lst 'openssh.tcz'
-require_content usr/local/share/x-chip/materialized-tcz.lst 'Xorg.tcz'
-require_content usr/local/share/x-chip/materialized-tcz.lst 'xorg-server.tcz'
-require_content usr/local/share/x-chip/materialized-tcz.lst 'xf86-video-fbdev.tcz'
-require_content usr/local/share/x-chip/materialized-tcz.lst 'xf86-input-libinput.tcz'
-require_content usr/local/share/x-chip/materialized-tcz.lst 'jwm.tcz'
-require_content usr/local/share/x-chip/materialized-tcz.lst 'pcmanfm.tcz'
-require_content usr/local/share/x-chip/materialized-tcz.lst 'bc.tcz'
-require_content usr/local/share/x-chip/materialized-tcz.lst 'gpicview.tcz'
-require_content usr/local/share/x-chip/materialized-tcz.lst 'conky.tcz'
+if [ "$IMAGE_VARIANT" != headless ]; then
+    require_content usr/local/share/x-chip/materialized-tcz.lst 'Xorg.tcz'
+    require_content usr/local/share/x-chip/materialized-tcz.lst 'xorg-server.tcz'
+    require_content usr/local/share/x-chip/materialized-tcz.lst 'xf86-video-fbdev.tcz'
+    require_content usr/local/share/x-chip/materialized-tcz.lst 'xf86-input-libinput.tcz'
+    require_content usr/local/share/x-chip/materialized-tcz.lst 'jwm.tcz'
+    require_content usr/local/share/x-chip/materialized-tcz.lst 'pcmanfm.tcz'
+    require_content usr/local/share/x-chip/materialized-tcz.lst 'bc.tcz'
+    require_content usr/local/share/x-chip/materialized-tcz.lst 'gpicview.tcz'
+    require_content usr/local/share/x-chip/materialized-tcz.lst 'conky.tcz'
+else
+    reject_content usr/local/share/x-chip/materialized-tcz.lst 'Xorg.tcz'
+    reject_content usr/local/share/x-chip/materialized-tcz.lst 'jwm.tcz'
+fi
 require_entry usr/local/etc/ca-certificates.conf
 require_content usr/local/etc/ssl/certs/ca-certificates.crt 'BEGIN CERTIFICATE'
 require_type usr/local/etc/ssl/certs/ca-bundle.crt l
@@ -1169,7 +1215,6 @@ require_content etc/X11/xorg.conf.d/20-pocketchip-fbdev.conf 'Driver "fbdev"'
 require_content etc/X11/xorg.conf.d/20-pocketchip-fbdev.conf 'CalibrationMatrix'
 reject_entry usr/local/share/X11/xorg.conf.d/20-noglamor.conf
 reject_entry etc/X11/xorg.conf.d/20-noglamor.conf
-require_entry usr/local/share/X11/xorg.conf.d/40-libinput.conf
 require_content usr/local/share/x-chip/xorg/touchscreen-calibration.matrix '-1.069801149 0.001502438'
 require_content usr/local/etc/X11/xorg.conf.d/20-pocketchip-fbdev.conf '-1.069801149 0.001502438'
 require_content usr/local/share/x-chip/xorg/jwmrc '<Tray'
@@ -1403,22 +1448,24 @@ reject_content tce/onboot.lst 'sox.tcz'
 reject_content tce/onboot.lst 'alsa-plugins.tcz'
 require_content tce/media.lst 'ffmpeg.tcz'
 require_content tce/media.lst 'mpg123.tcz'
-require_content tce/xorg.lst 'Xorg.tcz'
-require_content tce/xorg.lst 'xf86-video-fbdev.tcz'
-reject_content tce/xorg.lst '^xf86-video-fbturbo.tcz'
-require_content tce/xorg.lst 'flwm.tcz'
-require_content tce/xorg.lst 'jwm.tcz'
-require_content tce/xorg.lst 'aterm.tcz'
-require_content tce/xorg.lst 'xrandr.tcz'
-require_content tce/xorg.lst 'xinput.tcz'
-require_content tce/xorg.lst 'dillo.tcz'
-require_content tce/xorg.lst 'leafpad.tcz'
-require_content tce/xorg.lst 'bc.tcz'
-require_content tce/xorg.lst 'gpicview.tcz'
-require_content tce/xorg.lst 'libffi6.tcz'
-require_content tce/xorg.lst 'geany.tcz'
-require_content tce/xorg.lst 'pcmanfm.tcz'
-require_content tce/xorg.lst 'conky.tcz'
+if [ "$IMAGE_VARIANT" != headless ]; then
+    require_content tce/xorg.lst 'Xorg.tcz'
+    require_content tce/xorg.lst 'xf86-video-fbdev.tcz'
+    reject_content tce/xorg.lst '^xf86-video-fbturbo.tcz'
+    require_content tce/xorg.lst 'flwm.tcz'
+    require_content tce/xorg.lst 'jwm.tcz'
+    require_content tce/xorg.lst 'aterm.tcz'
+    require_content tce/xorg.lst 'xrandr.tcz'
+    require_content tce/xorg.lst 'xinput.tcz'
+    require_content tce/xorg.lst 'dillo.tcz'
+    require_content tce/xorg.lst 'leafpad.tcz'
+    require_content tce/xorg.lst 'bc.tcz'
+    require_content tce/xorg.lst 'gpicview.tcz'
+    require_content tce/xorg.lst 'libffi6.tcz'
+    require_content tce/xorg.lst 'geany.tcz'
+    require_content tce/xorg.lst 'pcmanfm.tcz'
+    require_content tce/xorg.lst 'conky.tcz'
+fi
 
 for script in \
     opt/x-chip-boot.sh \
@@ -1488,7 +1535,12 @@ done < <(grep -E '^(\./)?tce/optional/.*\.tcz\.dep$' "$TMP_LIST" | sed 's#^\./##
 require_pocketchip_keymap_complete
 
 if [ "${PRESEED_TCZ:-1}" = 1 ]; then
-    for ext_list in tce/onboot.lst tce/media.lst tce/xorg.lst; do
+    if [ "$IMAGE_VARIANT" != headless ]; then
+        preseed_lists="tce/onboot.lst tce/media.lst tce/xorg.lst"
+    else
+        preseed_lists="tce/onboot.lst tce/media.lst"
+    fi
+    for ext_list in $preseed_lists; do
         [ -f "$ext_list" ] || continue
         while IFS= read -r ext; do
             ext=${ext%%#*}

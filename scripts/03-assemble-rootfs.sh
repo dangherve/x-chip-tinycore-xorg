@@ -15,6 +15,11 @@ if [ "${PUBLIC_IMAGE:-0}" != 1 ] && [ -f "$SECRETS_ENV" ]; then
     { set +x; source "$SECRETS_ENV"; } 2>/dev/null
 fi
 
+case "${IMAGE_VARIANT:-xorg}" in
+    xorg|headless) ;;
+    *) echo "ERROR: IMAGE_VARIANT must be xorg or headless, got: $IMAGE_VARIANT" >&2; exit 1 ;;
+esac
+
 if [ "${PUBLIC_IMAGE:-0}" = 1 ]; then
     REQUIRE_WIFI_CONFIG=0
     REQUIRE_AUTHORIZED_KEYS=0
@@ -5689,7 +5694,7 @@ preseed_tcz_extensions() {
         done < tce/media.lst
     fi
 
-    if [ -f tce/xorg.lst ]; then
+    if [ "$IMAGE_VARIANT" != headless ] && [ -f tce/xorg.lst ]; then
         while IFS= read -r ext; do
             download_tcz "$ext"
         done < tce/xorg.lst
@@ -5761,7 +5766,7 @@ materialize_tcz_runtime_extensions() {
         collect_tcz "$ext"
     done
 
-    if [ -f tce/xorg.lst ]; then
+    if [ "$IMAGE_VARIANT" != headless ] && [ -f tce/xorg.lst ]; then
         while IFS= read -r ext; do
             collect_tcz "$ext"
         done < tce/xorg.lst
@@ -5889,10 +5894,17 @@ install_update_tooling() {
     echo "$PROJECT_GITHUB_OWNER/$PROJECT_REPO_NAME" | need_root tee "$RFS/usr/local/share/x-chip/update-repo" >/dev/null
     need_root chmod 644 "$RFS/usr/local/share/x-chip/update-repo"
 
+    # Only headless images carry an explicit variant marker: xorg images stay
+    # byte-identical to the historical builds, and x-chip-update treats a
+    # missing marker as xorg so already-flashed devices keep working.
+    local variant_line=
+    if [ "$IMAGE_VARIANT" = headless ]; then
+        variant_line="image_variant=headless"$'\n'
+    fi
     install_text 0644 "$RFS/usr/local/share/x-chip/release-info" <<EOF
 kernel_release=${KERNEL_VERSION}${KERNEL_LOCALVERSION}
 tinycore_version=$TINYCORE_VERSION
-built_at_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+${variant_line}built_at_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 built_at_epoch=$(date -u +%s)
 EOF
 
@@ -5910,6 +5922,12 @@ MARKER="$SHARE/applied-release"
 CACHE="$ROOT/tce/updates"
 REPO=${X_CHIP_UPDATE_REPO:-$(cat "$SHARE/update-repo" 2>/dev/null || true)}
 API=https://api.github.com
+
+# Images without an image_variant marker predate the headless variant and are
+# xorg; that default must never change or already-flashed devices would pull
+# the wrong update pack.
+VARIANT=$(sed -n 's/^image_variant=//p' "$SHARE/release-info" 2>/dev/null | head -n 1)
+[ -n "$VARIANT" ] || VARIANT=xorg
 
 # Kernel/boot files backed up as .prev before every update, for --rollback.
 KERNEL_BACKUP_FILES="boot/zImage boot/sun5i-r8-chip.dtb boot/boot.scr"
@@ -5999,14 +6017,29 @@ resolve_release() {
     [ -n "$REPO" ] || die "no update repository configured in $SHARE/update-repo"
     if [ -n "$TAG" ]; then
         url="$API/repos/$REPO/releases/tags/$TAG"
+    elif [ "$VARIANT" = headless ]; then
+        # Headless releases are published as pre-releases so /releases/latest
+        # (what xorg devices follow) never points at them. Scan the release
+        # list for the newest one that ships a headless update pack.
+        json=$(curl -fsSL "$API/repos/$REPO/releases?per_page=30") || die "cannot reach the GitHub API (is WiFi up?)"
+        headless_tag=$(printf '%s\n' "$json" | awk -F'"' '
+            $2 == "tag_name" { tag = $4 }
+            $2 == "name" && $4 ~ /-headless-.*\.update\.tar\.gz$/ && tag != "" { print tag; exit }')
+        [ -n "$headless_tag" ] || die "no release with a headless update pack found for $REPO"
+        url="$API/repos/$REPO/releases/tags/$headless_tag"
     else
         url="$API/repos/$REPO/releases/latest"
     fi
     json=$(curl -fsSL "$url") || die "cannot reach the GitHub API (is WiFi up?)"
     RELEASE_TAG=$(printf '%s\n' "$json" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)
-    PACK_ASSET=$(printf '%s\n' "$json" | sed -n 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\.update\.tar\.gz\)".*/\1/p' | head -n 1)
+    pack_assets=$(printf '%s\n' "$json" | sed -n 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\.update\.tar\.gz\)".*/\1/p')
+    if [ "$VARIANT" = headless ]; then
+        PACK_ASSET=$(printf '%s\n' "$pack_assets" | grep -- '-headless-' | head -n 1)
+    else
+        PACK_ASSET=$(printf '%s\n' "$pack_assets" | grep -v -- '-headless-' | head -n 1)
+    fi
     [ -n "$RELEASE_TAG" ] || die "no release found for $REPO"
-    [ -n "$PACK_ASSET" ] || die "release $RELEASE_TAG ships no update pack; it needs a full reflash"
+    [ -n "$PACK_ASSET" ] || die "release $RELEASE_TAG ships no $VARIANT update pack; it needs a full reflash"
 }
 
 release_matches_local_build() {
@@ -6592,6 +6625,19 @@ load_rtl8812au_if_present() {
 
 start_desktop() {
 	[ -x /usr/local/bin/x-chip-desktop-start ] || return 0
+	# Same autostart semantics as x-chip-desktop-start --boot: on a headless
+	# image (or a user-disabled desktop) skip cleanly instead of waiting 30s
+	# for an Xorg that will never start.
+	desktop_conf=${X_CHIP_DESKTOP_CONFIG:-/usr/local/etc/x-chip/desktop.conf}
+	autostart=$(sed -n 's/^X_CHIP_DESKTOP_AUTOSTART=\([^#[:space:]]*\).*$/\1/p' "$desktop_conf" 2>/dev/null | head -n 1)
+	[ -n "$autostart" ] || autostart=1
+	case "$autostart" in
+		1|yes|true|on) ;;
+		*)
+			echo "Desktop autostart disabled in $desktop_conf; staying on the console"
+			return 0
+			;;
+	esac
 	echo "Starting default desktop"
 	/usr/local/bin/x-chip-desktop-start --boot >/var/log/x-chip-desktop.log 2>&1 || \
 		echo "WARN: desktop autostart failed; see /var/log/x-chip-desktop.log"
@@ -6811,7 +6857,9 @@ EOF
 need_root install -d "$RFS/tce/optional"
 need_root cp tce/onboot.lst "$RFS/tce/onboot.lst"
 [ -f tce/media.lst ] && need_root cp tce/media.lst "$RFS/tce/media.lst"
-[ -f tce/xorg.lst ] && need_root cp tce/xorg.lst "$RFS/tce/xorg.lst"
+if [ "$IMAGE_VARIANT" != headless ]; then
+    [ -f tce/xorg.lst ] && need_root cp tce/xorg.lst "$RFS/tce/xorg.lst"
+fi
 need_root install -d "$RFS/opt"
 echo "$TC_MIRROR" | need_root tee "$RFS/opt/tcemirror" >/dev/null
 
@@ -6950,13 +6998,23 @@ for required in \
     ./lib/firmware/nextthingco/chip/early/x-chip-pocketchip.dtbo \
     ./lib/firmware/rtlwifi/rtl8723bs_nic.bin \
     ./tce/onboot.lst \
-    ./tce/media.lst \
-    ./tce/xorg.lst; do
+    ./tce/media.lst; do
     tar -tzf "$HERE/$OUT" "$required" >/dev/null 2>&1 || {
         echo "ERROR: packed rootfs is missing $required" >&2
         exit 1
     }
 done
+if [ "$IMAGE_VARIANT" != headless ]; then
+    tar -tzf "$HERE/$OUT" ./tce/xorg.lst >/dev/null 2>&1 || {
+        echo "ERROR: packed rootfs is missing ./tce/xorg.lst" >&2
+        exit 1
+    }
+else
+    if tar -tzf "$HERE/$OUT" ./tce/xorg.lst >/dev/null 2>&1; then
+        echo "ERROR: headless rootfs unexpectedly ships ./tce/xorg.lst" >&2
+        exit 1
+    fi
+fi
 if [ "${REQUIRE_WIFI_CONFIG:-1}" = 1 ]; then
     tar -tzf "$HERE/$OUT" ./etc/wpa_supplicant.conf >/dev/null 2>&1 || {
         echo "ERROR: packed rootfs is missing WiFi config" >&2

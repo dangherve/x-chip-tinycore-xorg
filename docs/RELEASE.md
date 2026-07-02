@@ -23,6 +23,7 @@ Do not commit:
 - `secrets.env`
 - `build/`
 - `xorg-rootfs.tar.gz`
+- `headless-rootfs.tar.gz`
 - `dist/`
 - downloaded images or archives
 - private keys or certificates
@@ -89,6 +90,31 @@ ssh_password_auth=yes
 
 The public SSH login is `chip` / `chip` by default. Override the password for a
 custom public build with `SSH_PASSWORD=... make public-rootfs`.
+
+## Headless Image
+
+The headless variant is the same base system without the Xorg/desktop
+extensions or the community app cache:
+
+```sh
+make headless-rootfs            # personal (secrets.env)
+make public-headless-rootfs     # public, password SSH
+make public-headless-release    # public release files in dist/
+IMAGE_VARIANT=headless make flash-local
+```
+
+Every headless release asset carries `-headless-` in its name and its
+MANIFEST shows `image_variant=headless`.
+
+Publishing rules, they protect already-flashed desktop devices:
+
+- Publish headless releases as **separate** GitHub releases, never attach a
+  headless update pack to an xorg release. Older flashed devices download the
+  first `*.update.tar.gz` they see in a release.
+- Always mark a headless release as **pre-release**, never as the latest
+  release. Both the public flasher and xorg devices follow
+  `releases/latest`; only xorg releases may hold that slot. Headless devices
+  find their updates by scanning the release list for `-headless-` packs.
 
 ## Optional Community `.tcz` Extras
 

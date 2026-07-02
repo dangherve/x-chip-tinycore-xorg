@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 PRIVATE_ROMS_DIR ?= dist/private-roms/GameBoy
 
-.PHONY: all deps base kernel rtl8812au rootfs container-build private-gameboy-rootfs public-rootfs verify public-verify public-release community-tcz update-pack flash-local-check flash-local flash-host-check flash-host flash-pi-check flash-pi clean distclean
+.PHONY: all deps base kernel rtl8812au rootfs container-build private-gameboy-rootfs public-rootfs verify public-verify public-release headless-rootfs public-headless-rootfs headless-verify public-headless-verify public-headless-release community-tcz update-pack flash-local-check flash-local flash-host-check flash-host flash-pi-check flash-pi clean distclean
 
 all: rootfs
 
@@ -54,6 +54,24 @@ public-verify:
 # MANIFEST.txt; 08 would otherwise happily package a stale xorg-rootfs.tar.gz.
 public-release: public-rootfs
 	PUBLIC_IMAGE=1 REQUIRE_WIFI_CONFIG=0 REQUIRE_AUTHORIZED_KEYS=0 SECRETS_ENV=/dev/null ./scripts/08-package-release.sh
+
+# Headless variant: same base system (kernel, WiFi, SSH, console, updater),
+# no Xorg/desktop extensions, no community app cache -> headless-rootfs.tar.gz.
+# Flash it with: IMAGE_VARIANT=headless make flash-local
+headless-rootfs:
+	IMAGE_VARIANT=headless ./scripts/06-build-in-container.sh
+
+public-headless-rootfs:
+	IMAGE_VARIANT=headless PUBLIC_IMAGE=1 REQUIRE_WIFI_CONFIG=0 REQUIRE_AUTHORIZED_KEYS=0 SECRETS_ENV=/dev/null ./scripts/06-build-in-container.sh
+
+headless-verify:
+	IMAGE_VARIANT=headless ./scripts/07-verify-rootfs.sh
+
+public-headless-verify:
+	IMAGE_VARIANT=headless PUBLIC_IMAGE=1 REQUIRE_WIFI_CONFIG=0 REQUIRE_AUTHORIZED_KEYS=0 SECRETS_ENV=/dev/null ./scripts/07-verify-rootfs.sh
+
+public-headless-release: public-headless-rootfs
+	IMAGE_VARIANT=headless PUBLIC_IMAGE=1 REQUIRE_WIFI_CONFIG=0 REQUIRE_AUTHORIZED_KEYS=0 SECRETS_ENV=/dev/null ./scripts/08-package-release.sh
 
 community-tcz:
 	./scripts/09-build-community-tcz.sh

@@ -11,7 +11,9 @@ if [ "${PUBLIC_IMAGE:-0}" = 1 ]; then
 fi
 
 ROOTFS=${1:-${ROOTFS:-$OUT}}
-RELEASE_NAME=${RELEASE_NAME:-${PROJECT_REPO_NAME}-pocketchip-${KERNEL_VERSION}${KERNEL_LOCALVERSION}}
+# Headless releases carry a -headless- marker in every asset name; the
+# on-device updater picks its pack by that marker.
+RELEASE_NAME=${RELEASE_NAME:-${PROJECT_REPO_NAME}${IMAGE_VARIANT_SUFFIX}-pocketchip-${KERNEL_VERSION}${KERNEL_LOCALVERSION}}
 DIST_DIR=${DIST_DIR:-dist}
 
 [ -f "$ROOTFS" ] || {
@@ -82,6 +84,7 @@ rootfs_sha=$(sha256sum "$rootfs_out" | awk '{print $1}')
 
 cat >"$release_dir/MANIFEST.txt" <<EOF
 name=$RELEASE_NAME
+image_variant=${IMAGE_VARIANT:-xorg}
 generated_at_utc=$generated_at
 source_git_rev=$git_rev
 source_repo=$PROJECT_REPO_URL

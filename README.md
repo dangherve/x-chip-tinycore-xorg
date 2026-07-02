@@ -304,6 +304,25 @@ automatically. See `docs/RELEASE.md` for the checklist.
 Override the default public password at build time with
 `SSH_PASSWORD='...' make public-rootfs`.
 
+### Headless image (no Xorg, no desktop)
+
+The headless variant keeps the exact same kernel, boot path, WiFi, SSH,
+serial/USB debug, console tools, and `x-chip-update` support, but preseeds no
+Xorg/desktop extensions and no community app pack, and boots to the LCD
+console instead of the desktop. It builds `headless-rootfs.tar.gz`:
+
+```sh
+make headless-rootfs                     # personal (secrets.env)
+make public-headless-rootfs              # public build
+IMAGE_VARIANT=headless make flash-local  # verify + flash it
+```
+
+The desktop can still be added later on a running headless device
+(`tce-load` downloads on demand), and `sudo x-chip-update` on a headless
+device only ever installs `-headless-` update packs. Release packaging works
+the same way through `make public-headless-release`; see `docs/RELEASE.md`
+for the headless publishing rules.
+
 ### Community app pack
 
 ```sh
