@@ -6306,27 +6306,55 @@ sha256_of() {
     fi | awk '{ print $1 }'
 }
 
+download_pack_file() {
+    log "downloading $PACK_ASSET"
+    curl -fL -o "$dest.part" "$url" || { rm -f "$dest.part"; die "download failed: $url"; }
+    mv -f "$dest.part" "$dest"
+}
+
 download_pack() {
-    mkdir -p "$CACHE"
-    dest="$CACHE/$PACK_ASSET"
+    release_cache="$CACHE/$RELEASE_TAG"
+    mkdir -p "$release_cache"
+    dest="$release_cache/$PACK_ASSET"
     url="https://github.com/$REPO/releases/download/$RELEASE_TAG/$PACK_ASSET"
+    legacy="$CACHE/$PACK_ASSET"
+    if [ -f "$legacy" ] || [ -f "$legacy.sha256" ] || [ -f "$legacy.part" ]; then
+        log "removing old cache entry for $PACK_ASSET"
+        rm -f "$legacy" "$legacy.sha256" "$legacy.part"
+    fi
     if [ ! -f "$dest" ]; then
-        log "downloading $PACK_ASSET"
-        curl -fL -o "$dest.part" "$url" || { rm -f "$dest.part"; die "download failed: $url"; }
-        mv -f "$dest.part" "$dest"
+        download_pack_file
     else
-        log "using cached $PACK_ASSET"
+        log "using cached $PACK_ASSET for $RELEASE_TAG"
     fi
     curl -fsSL -o "$dest.sha256" "$url.sha256" || die "could not download $PACK_ASSET.sha256"
     sha_expected=$(awk 'NF { print $1; exit }' "$dest.sha256")
     sha_actual=$(sha256_of "$dest")
     [ -n "$sha_actual" ] || die "no sha256 tool available on this system"
     if [ "$sha_expected" != "$sha_actual" ]; then
-        rm -f "$dest"
-        die "sha256 mismatch for $PACK_ASSET; removed the bad download, run the update again"
+        log "cached $PACK_ASSET failed sha256; downloading a fresh copy"
+        rm -f "$dest" "$dest.part"
+        download_pack_file
+        sha_actual=$(sha256_of "$dest")
+        [ -n "$sha_actual" ] || die "no sha256 tool available on this system"
+        if [ "$sha_expected" != "$sha_actual" ]; then
+            rm -f "$dest"
+            die "sha256 mismatch for $PACK_ASSET after a fresh download"
+        fi
     fi
     log "verified sha256: $sha_actual"
     PACK=$dest
+}
+
+cleanup_update_cache() {
+    [ -d "$CACHE" ] || return 0
+    rm -f "$CACHE"/*.update.tar.gz "$CACHE"/*.update.tar.gz.sha256 "$CACHE"/*.update.tar.gz.part 2>/dev/null || true
+    [ -n "$RELEASE_TAG" ] || return 0
+    for d in "$CACHE"/*; do
+        [ -d "$d" ] || continue
+        [ "$(basename "$d")" = "$RELEASE_TAG" ] && continue
+        rm -rf "$d"
+    done
 }
 
 check_space() {
@@ -6367,6 +6395,7 @@ apply_pack() {
     fi
     mkdir -p "$SHARE"
     printf '%s\n' "${RELEASE_TAG:-local-file}" >"$MARKER"
+    cleanup_update_cache
     sync
 }
 
