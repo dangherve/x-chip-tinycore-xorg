@@ -191,8 +191,10 @@ reject_binary_hex() {
 require_arm_elf() {
     local path=$1 hex
     require_entry "$path"
-    # First 20 bytes: ELF magic + class/endianness, e_machine (LE) at byte 18.
-    hex=$(extract_entry "$path" | od -An -tx1 -N20 | tr -d ' \n')
+    # Read the whole entry like require_binary_hex does: a truncating reader
+    # (od -N) would close the pipe early and SIGPIPE extract_entry under
+    # this script's pipefail. ELF magic first, e_machine (LE) at byte 18.
+    hex=$(extract_entry "$path" | od -An -tx1 | tr -d ' \n')
     case "$hex" in
         7f454c460101*) ;;
         *)
