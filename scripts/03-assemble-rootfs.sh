@@ -6976,7 +6976,6 @@ for required in \
     ./usr/local/share/applications/x-chip-text.desktop \
     ./usr/local/share/applications/mimeapps.list \
     ./usr/local/share/applications/mimeinfo.cache \
-    ./usr/local/share/mime/mime.cache \
     ./home/$SSH_USER/Pictures/red-hood-field.jpeg \
     ./home/$SSH_USER/Videos/pocket-video-demo.mp4 \
     ./home/$SSH_USER/Videos/night-lamp-dream.mp4 \
@@ -7005,10 +7004,15 @@ for required in \
     }
 done
 if [ "$IMAGE_VARIANT" != headless ]; then
-    tar -tzf "$HERE/$OUT" ./tce/xorg.lst >/dev/null 2>&1 || {
-        echo "ERROR: packed rootfs is missing ./tce/xorg.lst" >&2
-        exit 1
-    }
+    # mime.cache is compiled from the MIME XML data the desktop stack ships;
+    # headless images have no such data and x-chip-gtk-cache regenerates the
+    # cache on demand if a desktop is ever installed.
+    for required in ./tce/xorg.lst ./usr/local/share/mime/mime.cache; do
+        tar -tzf "$HERE/$OUT" "$required" >/dev/null 2>&1 || {
+            echo "ERROR: packed rootfs is missing $required" >&2
+            exit 1
+        }
+    done
 else
     if tar -tzf "$HERE/$OUT" ./tce/xorg.lst >/dev/null 2>&1; then
         echo "ERROR: headless rootfs unexpectedly ships ./tce/xorg.lst" >&2

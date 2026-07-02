@@ -385,7 +385,6 @@ for required in \
     usr/local/share/applications/x-chip-text.desktop \
     usr/local/share/applications/mimeapps.list \
     usr/local/share/applications/mimeinfo.cache \
-    usr/local/share/mime/mime.cache \
     usr/local/share/x-chip/xorg/icons/apps.xpm \
     usr/local/share/x-chip/xorg/icons/back.xpm \
     usr/local/share/x-chip/xorg/icons/brightness.xpm \
@@ -473,6 +472,7 @@ if [ "$IMAGE_VARIANT" != headless ]; then
         usr/local/bin/xrandr \
         usr/local/bin/xinput \
         usr/local/share/X11/xorg.conf.d/40-libinput.conf \
+        usr/local/share/mime/mime.cache \
         tce/xorg.lst; do
         require_entry "$required"
     done
@@ -606,7 +606,6 @@ for root_owned in \
     usr/local/share/applications/x-chip-text.desktop \
     usr/local/share/applications/mimeapps.list \
     usr/local/share/applications/mimeinfo.cache \
-    usr/local/share/mime/mime.cache \
     usr/local/share/x-chip/tic80-carts.tsv \
     usr/local/share/x-chip/gameboy-homebrew.tsv \
     usr/local/share/x-chip/xorg/20-pocketchip-fbturbo.conf.example; do
@@ -623,7 +622,8 @@ if [ "$IMAGE_VARIANT" != headless ]; then
         usr/local/bin/jwm \
         usr/local/bin/aterm \
         usr/local/bin/xrandr \
-        usr/local/bin/xinput; do
+        usr/local/bin/xinput \
+        usr/local/share/mime/mime.cache; do
         require_owner "$root_owned" "0/0"
     done
 fi
