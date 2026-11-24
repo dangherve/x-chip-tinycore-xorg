@@ -50,3 +50,5 @@ result-man
 *.swo
 
 !buildTools
+
+!.woodpecker
