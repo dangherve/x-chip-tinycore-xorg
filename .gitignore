@@ -48,3 +48,5 @@ result-man
 *~
 *.swp
 *.swo
+
+!buildTools
